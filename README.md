@@ -2,6 +2,8 @@
 
 > Structured capital event extraction from DRHP/IPO filings using Claude AI.
 
+![Lint](https://github.com/Utkal059/capscribe/actions/workflows/lint.yml/badge.svg)
+
 capscribe parses dense regulatory PDF documents (DRHPs, IPO prospectuses) and extracts structured capital event data — allotments, bonus issues, rights issues, and authorised capital changes — into clean, machine-readable JSON. Built for analysts, quant researchers, and fintech pipelines that need reliable signal from unstructured filings.
 
 ---
@@ -21,7 +23,7 @@ capscribe parses dense regulatory PDF documents (DRHPs, IPO prospectuses) and ex
 
 PDFs are split into overlapping page chunks to stay within context limits. Each chunk is passed to Claude with a structured prompt that enforces consistent JSON output. Results are merged, deduplicated, and post-processed into a single clean file per document.
 
-```
+```text
 DRHP PDF (444 pages)
       │
       ▼
@@ -50,10 +52,6 @@ pip install -r requirements.txt
 **2. Add your Anthropic API key**
 
 Create a `.env` file in the project root:
-
-```
-ANTHROPIC_API_KEY=your_key_here
-```
 
 ---
 
@@ -110,7 +108,7 @@ output/sample_extracted.json
 
 ## Project structure
 
-```
+```text
 capscribe/
 ├── extractor.py          # Core extraction pipeline (PDF → chunks → Claude → JSON)
 ├── postprocess.py        # Deduplication, merging, field normalisation
