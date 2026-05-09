@@ -1,4 +1,6 @@
-import json, csv, sys
+import json
+import csv
+import sys
 from pathlib import Path
 
 def deduplicate(events):
