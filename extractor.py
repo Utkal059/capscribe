@@ -84,5 +84,10 @@ def extract_from_pdf(pdf_path: str) -> list:
     return all_events
 
 if __name__ == "__main__":
-    result = extract_from_pdf("sample.pdf")
-    print(json.dumps(result, indent=2))
+    import argparse
+    parser = argparse.ArgumentParser(description="Extract capital events from DRHP/IPO PDFs")
+    parser.add_argument("pdf", help="Path to the PDF file")
+    parser.add_argument("--out", default="output", help="Output directory (default: output)")
+    args = parser.parse_args()
+    result = extract_from_pdf(args.pdf)
+    print(f"\nDone. {len(result)} events extracted.")
