@@ -134,11 +134,13 @@ def clean_checkpoints(out_dir: Path, num_chunks: int) -> None:
 
 
 # ── Main pipeline ──────────────────────────────────────────────────────────────
-def extract(pdf_path: Path, out_dir: Path) -> Path:
+def extract(pdf_path: Path, out_dir: Path, max_pages: int = 10) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Reading {pdf_path.name}…")
     pages = extract_pages(pdf_path)
+    if max_pages and max_pages > 0:
+        pages = pages[:max_pages]
     chunks = make_chunks(pages)
     total_pages = len(pages)
     print(f"  {total_pages} pages → {len(chunks)} chunks (size={CHUNK_SIZE}, overlap={OVERLAP})")
@@ -200,10 +202,20 @@ if __name__ == "__main__":
         default=Path("output"),
         help="Output directory (default: output/)",
     )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=10,
+        help="Max pages to process (default: 10). Use 0 for full document.",
+    )
     args = parser.parse_args()
 
     if not args.pdf.exists():
         print(f"Error: file not found: {args.pdf}")
         sys.exit(1)
 
-    extract(args.pdf, args.out)
+    extract(args.pdf, args.out, max_pages=args.max_pages)
+
+
+
+
