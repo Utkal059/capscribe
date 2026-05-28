@@ -17,12 +17,11 @@ import csv
 import hashlib
 import json
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any, Optional
 
 try:
-    from pydantic import BaseModel, field_validator, ValidationError
+    from pydantic import BaseModel, ValidationError
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
