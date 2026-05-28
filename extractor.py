@@ -35,8 +35,8 @@ load_dotenv()
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 MODEL = os.getenv("CAPSCRIBE_MODEL", "claude-sonnet-4-6")
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "40"))
-OVERLAP = int(os.getenv("OVERLAP", "3"))          # pages shared between chunks
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "2"))  # dense DRHP tables need small chunks
+OVERLAP = int(os.getenv("OVERLAP", "1"))          # pages shared between chunks
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "8192"))  # was hardcoded 4096
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -51,7 +51,7 @@ client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
         (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError)
     ),
     wait=wait_exponential(multiplier=1, min=4, max=60),
-    stop=stop_after_attempt(5),
+    stop=stop_after_attempt(2),
     reraise=True,
 )
 def call_claude(text: str) -> list[dict]:
@@ -134,11 +134,12 @@ def clean_checkpoints(out_dir: Path, num_chunks: int) -> None:
 
 
 # ── Main pipeline ──────────────────────────────────────────────────────────────
-def extract(pdf_path: Path, out_dir: Path, max_pages: int = 10) -> Path:
+def extract(pdf_path: Path, out_dir: Path, max_pages: int = 10, start_page: int = 1) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Reading {pdf_path.name}…")
     pages = extract_pages(pdf_path)
+    pages = pages[start_page-1:]
     if max_pages and max_pages > 0:
         pages = pages[:max_pages]
     chunks = make_chunks(pages)
@@ -202,8 +203,8 @@ if __name__ == "__main__":
         default=Path("output"),
         help="Output directory (default: output/)",
     )
-    parser.add_argument(
-        "--max-pages",
+    parser.add_argument("--start-page", type=int, default=1, help="First page to process (1-indexed)")
+    parser.add_argument("--max-pages",
         type=int,
         default=10,
         help="Max pages to process (default: 10). Use 0 for full document.",
@@ -214,7 +215,15 @@ if __name__ == "__main__":
         print(f"Error: file not found: {args.pdf}")
         sys.exit(1)
 
-    extract(args.pdf, args.out, max_pages=args.max_pages)
+    extract(args.pdf, args.out, max_pages=args.max_pages, start_page=args.start_page)
+
+
+
+
+
+
+
+
 
 
 
