@@ -1,0 +1,56 @@
+{
+  "source_file": "ola_electric_drhp.pdf",
+  "total_pages": 444,
+  "extraction_date": "2026-05-10",
+  "capital_events": [
+    {
+      "event_type": "allotment",
+      "date": "2017-02-03",
+      "shares": 10000,
+      "face_value": 10,
+      "issue_price": 10,
+      "consideration": "cash",
+      "allottee_category": "promoters"
+    },
+    {
+      "event_type": "allotment",
+      "date": "2019-06-21",
+      "shares": 250000,
+      "face_value": 10,
+      "issue_price": 154.2,
+      "consideration": "cash",
+      "allottee_category": "preferential_investors"
+    },
+    {
+      "event_type": "bonus_issue",
+      "date": "2021-08-01",
+      "ratio": "5:1",
+      "shares_issued": 50000000,
+      "pre_issue_capital": 100000000,
+      "post_issue_capital": 600000000
+    },
+    {
+      "event_type": "rights_issue",
+      "date": "2022-03-15",
+      "ratio": "1:4",
+      "price": 220.5,
+      "shares_offered": 1200000
+    },
+    {
+      "event_type": "authorised_capital_change",
+      "date": "2023-01-10",
+      "old_capital": 600000000,
+      "new_capital": 1500000000,
+      "resolution_type": "special_resolution"
+    },
+    {
+      "event_type": "allotment",
+      "date": "2023-09-30",
+      "shares": 8000000,
+      "face_value": 10,
+      "issue_price": 76.0,
+      "consideration": "cash",
+      "allottee_category": "esop"
+    }
+  ]
+}
