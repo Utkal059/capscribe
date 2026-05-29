@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CapScribe — Capital Event Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0b0d10;
+    --panel: #14181d;
+    --panel-2: #1b2128;
+    --line: #2a323b;
+    --text: #e7e3d8;
+    --muted: #8b9099;
+    --amber: #e0a448;
+    --amber-dim: #b9863a;
+    --green: #7fb069;
+    --red: #d97b66;
+    --serif: "Fraunces", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background:
+      radial-gradient(1200px 600px at 80% -10%, #1a1f26 0%, transparent 60%),
+      var(--ink);
+    color: var(--text); font-family: var(--mono); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding: 28px 32px 22px; display: flex; align-items: baseline; gap: 18px;
+    flex-wrap: wrap;
+  }
+  .wordmark { font-family: var(--serif); font-weight: 900; font-size: 30px; letter-spacing: -0.5px; }
+  .wordmark .cap { color: var(--amber); }
+  .tag { color: var(--muted); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+  .src { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .src b { color: var(--text); font-weight: 500; }
+  main { max-width: 1040px; margin: 0 auto; padding: 28px 32px 80px; }
+
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 30px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; min-width: 120px;
+  }
+  .stat .n { font-family: var(--serif); font-size: 28px; font-weight: 600; color: var(--amber); }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+
+  .bar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  input[type=text] {
+    flex: 1; min-width: 240px; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--text); padding: 13px 16px; border-radius: 9px; font-family: var(--mono); font-size: 14px;
+  }
+  input[type=text]:focus { outline: none; border-color: var(--amber-dim); }
+  button {
+    background: var(--amber); color: #1a1206; border: none; padding: 0 20px; border-radius: 9px;
+    font-family: var(--mono); font-weight: 700; font-size: 13px; cursor: pointer; letter-spacing: 0.3px;
+  }
+  button:hover { background: #f0b65a; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  button.ghost.on { color: var(--amber); border-color: var(--amber-dim); }
+
+  h2 { font-family: var(--serif); font-weight: 600; font-size: 15px; color: var(--muted);
+       text-transform: uppercase; letter-spacing: 2px; margin: 34px 0 12px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--amber-dim);
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;
+  }
+  .card .type { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+  .card .meta { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .card .score { color: var(--green); font-size: 12px; white-space: nowrap; }
+
+  .answer {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 20px; white-space: pre-wrap; font-size: 13.5px; color: var(--text);
+  }
+  .empty { color: var(--muted); font-style: italic; padding: 8px 2px; }
+  .hint { color: var(--muted); font-size: 11.5px; margin-top: 6px; }
+  .hint code { color: var(--amber-dim); }
+</style>
+</head>
+<body>
+<header>
+  <span class="wordmark"><span class="cap">Cap</span>Scribe</span>
+  <span class="tag">Capital&nbsp;Event&nbsp;Intelligence</span>
+  <span class="src">Source: <b id="source">—</b> · <b id="indexed">0</b> events indexed</span>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <h2>Semantic search</h2>
+  <div class="bar">
+    <input type="text" id="q" placeholder="e.g. promoter allotments before the bonus issue" />
+    <button onclick="runSearch()">Search</button>
+  </div>
+  <div id="results"></div>
+
+  <h2>Ask the filing</h2>
+  <div class="bar">
+    <input type="text" id="ask" placeholder="e.g. what changed the authorised capital, and when?" />
+    <button class="ghost on" id="modeBtn" onclick="toggleMode()">Mode: extractive</button>
+    <button onclick="runAsk()">Ask</button>
+  </div>
+  <div class="hint">Extractive mode is free. Switch to <code>llm</code> mode to synthesise prose via Claude (uses API credits).</div>
+  <div id="answer"></div>
+</main>
+
+<script>
+  const API = location.origin.startsWith("http") && location.port !== "5500"
+    ? "" : "http://localhost:8000";
+  let mode = "extractive";
+
+  async function api(path, opts) {
+    const r = await fetch(API + path, opts);
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    return r.json();
+  }
+  function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  function eventLine(e){
+    const bits = [];
+    if (e.date) bits.push(e.date);
+    if (e.ratio) bits.push("ratio " + e.ratio);
+    if (e.shares) bits.push(e.shares + " shares");
+    if (e.allottee_category) bits.push(e.allottee_category);
+    if (e.issue_price) bits.push("@ " + e.issue_price);
+    if (e.new_capital) bits.push("→ " + e.new_capital);
+    if (e.resolution_type) bits.push(e.resolution_type);
+    return bits.join(" · ");
+  }
+
+  async function boot(){
+    try {
+      const h = await api("/health");
+      document.getElementById("source").textContent = h.source || "—";
+      document.getElementById("indexed").textContent = h.indexed;
+      const s = await api("/stats");
+      const el = document.getElementById("stats");
+      el.innerHTML = `<div class="stat"><div class="n">${s.total}</div><div class="l">total</div></div>` +
+        Object.entries(s.by_type).map(([k,v]) =>
+          `<div class="stat"><div class="n">${v}</div><div class="l">${k.replace(/_/g," ")}</div></div>`).join("");
+    } catch(e){
+      document.getElementById("stats").innerHTML =
+        `<div class="empty">Backend not reachable. Start it with <code>uvicorn api:app --reload</code>.</div>`;
+    }
+  }
+
+  async function runSearch(){
+    const q = document.getElementById("q").value.trim();
+    const box = document.getElementById("results");
+    if (!q){ box.innerHTML = `<div class="empty">Enter a query.</div>`; return; }
+    box.innerHTML = `<div class="empty">Searching…</div>`;
+    try {
+      const r = await api("/search", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({query:q})});
+      box.innerHTML = r.hits.length ? r.hits.map(h => `
+        <div class="card">
+          <div><div class="type">${esc(h.event.event_type.replace(/_/g," "))}</div>
+          <div class="meta">${esc(eventLine(h.event))}</div></div>
+          <div class="score">${(h.score*100).toFixed(0)}% match</div>
+        </div>`).join("") : `<div class="empty">No matches.</div>`;
+    } catch(e){ box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  }
+
+  function toggleMode(){
+    mode = mode === "extractive" ? "llm" : "extractive";
+    const b = document.getElementById("modeBtn");
+    b.textContent = "Mode: " + mode;
+    b.classList.toggle("on", mode === "extractive");
+  }
+
+  async function runAsk(){
+    const q = document.getElementById("ask").value.trim();
+    const box = document.getElementById("answer");
+    if (!q){ box.innerHTML = `<div class="empty">Enter a question.</div>`; return; }
+    box.innerHTML = `<div class="empty">Thinking…</div>`;
+    try {
+      const r = await api("/ask", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({question:q, mode})});
+      box.innerHTML = `<div class="answer">${esc(r.answer)}</div>`;
+    } catch(e){ box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  }
+
+  document.getElementById("q").addEventListener("keydown", e => { if(e.key==="Enter") runSearch(); });
+  document.getElementById("ask").addEventListener("keydown", e => { if(e.key==="Enter") runAsk(); });
+  boot();
+</script>
+</body>
+</html>

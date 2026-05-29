@@ -1,0 +1,12 @@
+{
+  "source_file": "ola_electric_drhp.pdf",
+  "capital_events": [
+    {"event_type": "allotment", "date": "2017-02-03", "shares": 10000},
+    {"event_type": "allotment", "date": "2019-06-21", "shares": 250000},
+    {"event_type": "bonus_issue", "date": "2021-08-01", "ratio": "5:1"},
+    {"event_type": "rights_issue", "date": "2022-03-15", "ratio": "1:4"},
+    {"event_type": "authorised_capital_change", "date": "2023-01-10", "new_capital": 1500000000},
+    {"event_type": "allotment", "date": "2023-09-30", "shares": 8000000},
+    {"event_type": "allotment", "date": "2024-02-14", "shares": 500000}
+  ]
+}
