@@ -21,11 +21,13 @@ import json
 import logging
 from typing import Optional, TypedDict
 
+import time
+
 from langgraph.graph import END, StateGraph
 
 from config import settings
 from retrieval import EventStore
-from schema import AskResponse
+from schema import AskResponse, citation_from_hit
 
 logger = logging.getLogger("capscribe.agent")
 
@@ -115,12 +117,19 @@ class CapScribeAgent:
         self.graph = _build_graph(store)
 
     def ask(self, question: str, mode: str = "extractive") -> AskResponse:
+        t0 = time.perf_counter()
         final = self.graph.invoke(
             {"question": question, "mode": mode, "hits": [], "answer": ""}
         )
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        hits = final["hits"]
+        page_citations = [c for c in (citation_from_hit(h) for h in hits) if c is not None]
         return AskResponse(
             question=question,
             answer=final["answer"],
             mode=mode,  # type: ignore[arg-type]
-            citations=[h.event for h in final["hits"]],
+            citations=[h.event for h in hits],
+            page_citations=page_citations,
+            retrieval_strategy=getattr(self.store, "last_strategy", "vector"),
+            query_time_ms=round(elapsed_ms, 2),
         )

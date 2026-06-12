@@ -62,7 +62,7 @@ pytest -q   # 15 passed
 
 ```bash
 python evaluate.py fixtures/sample_events.json fixtures/gold_events.json
-```
+```   
 
 ## License
 

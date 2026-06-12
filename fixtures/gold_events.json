@@ -7,6 +7,18 @@
     {"event_type": "rights_issue", "date": "2022-03-15", "ratio": "1:4"},
     {"event_type": "authorised_capital_change", "date": "2023-01-10", "new_capital": 1500000000},
     {"event_type": "allotment", "date": "2023-09-30", "shares": 8000000},
-    {"event_type": "allotment", "date": "2024-02-14", "shares": 500000}
+    {"event_type": "allotment", "date": "2024-02-14", "shares": 500000},
+
+    {"event_type": "dividend_declaration", "date": "2022-07-15", "amount_per_share": 2.5, "synthetic": true},
+    {"event_type": "dividend_declaration", "date": "2023-07-20", "amount_per_share": 3.0, "synthetic": true},
+    {"event_type": "dividend_declaration", "date": "2024-07-18", "amount_per_share": 3.5, "synthetic": true},
+
+    {"event_type": "share_repurchase", "date": "2022-11-10", "shares_bought_back": 1000000, "synthetic": true},
+    {"event_type": "share_repurchase", "date": "2023-11-12", "shares_bought_back": 800000, "synthetic": true},
+    {"event_type": "share_repurchase", "date": "2024-11-15", "shares_bought_back": 600000, "synthetic": true},
+
+    {"event_type": "warrant_exercise", "date": "2021-05-05", "warrants_exercised": 200000, "synthetic": true},
+    {"event_type": "warrant_exercise", "date": "2022-05-06", "warrants_exercised": 150000, "synthetic": true},
+    {"event_type": "warrant_exercise", "date": "2023-05-07", "warrants_exercised": 100000, "synthetic": true}
   ]
 }

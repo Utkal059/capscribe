@@ -3,7 +3,25 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#0b0d10" />
 <title>CapScribe — Capital Event Intelligence</title>
+<meta name="description" content="CapScribe parses dense regulatory filings (DRHPs, IPO prospectuses, annual reports) and extracts structured, source-backed capital events — allotments, bonus issues, rights issues, authorised-capital changes — into clean, schema-validated JSON." />
+<meta name="author" content="Utkal Singh" />
+<meta name="keywords" content="DRHP, IPO prospectus, capital events, document extraction, structured data, fintech, semantic search, RAG, ChromaDB, LangGraph" />
+<link rel="canonical" href="https://github.com/Utkal059/capscribe" />
+
+<!-- Open Graph / social share -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="CapScribe — Capital Event Intelligence" />
+<meta property="og:description" content="Structured, source-backed capital events extracted from dense regulatory filings into clean JSON." />
+<meta property="og:url" content="https://github.com/Utkal059/capscribe" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="CapScribe — Capital Event Intelligence" />
+<meta name="twitter:description" content="Structured, source-backed capital events extracted from dense regulatory filings into clean JSON." />
+
+<!-- Inline SVG favicon (no extra request, no 404) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d10'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='21' font-weight='900' fill='%23e0a448' text-anchor='middle'%3EC%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -24,6 +42,25 @@
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
+
+  /* ---------- accessibility ---------- */
+  :focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .skip {
+    position: fixed; top: 10px; left: 50%; transform: translate(-50%, -150%);
+    z-index: 200; background: var(--amber); color: #1a1206;
+    padding: 10px 18px; border-radius: 8px; font-family: var(--mono);
+    font-weight: 700; font-size: 13px; text-decoration: none;
+    transition: transform .2s ease;
+  }
+  .skip:focus { transform: translate(-50%, 0); }
   body {
     margin: 0;
     background: var(--ink);
@@ -352,6 +389,8 @@
     transition: border-color .25s, color .25s;
   }
   .cite:hover { border-color: var(--amber-dim); color: var(--text); }
+  .cite .cite-pg { color: var(--amber-dim); margin-left: 3px; font-size: 10px; }
+  .cite:hover .cite-pg { color: var(--amber); }
   .empty { color: var(--muted); font-style: italic; padding: 10px 2px; }
   .hint { color: var(--muted); font-size: 11.5px; margin: -4px 0 14px; }
   .hint code { color: var(--amber-dim); }
@@ -423,12 +462,13 @@
 </style>
 </head>
 <body>
-<div class="bg"></div>
-<canvas id="net"></canvas>
-<div id="glow"></div>
-<div id="progress"></div>
+<a class="skip" href="#main">Skip to content</a>
+<div class="bg" aria-hidden="true"></div>
+<canvas id="net" aria-hidden="true"></canvas>
+<div id="glow" aria-hidden="true"></div>
+<div id="progress" aria-hidden="true"></div>
 
-<nav>
+<nav aria-label="Primary">
   <span class="wordmark"><span class="cap">Cap</span>Scribe</span>
   <div class="links">
     <a href="#search">Search</a>
@@ -437,10 +477,10 @@
     <a href="#extracts">Extracts</a>
     <a href="#eval">Eval</a>
   </div>
-  <span class="status">
-    <span class="dot" id="dot"></span>
+  <span class="status" role="status" aria-live="polite">
+    <span class="dot" id="dot" aria-hidden="true"></span>
     <span>Source: <b id="source">—</b></span>
-    <span>·</span>
+    <span aria-hidden="true">·</span>
     <span><b id="indexed">0</b> events</span>
   </span>
 </nav>
@@ -460,7 +500,7 @@
       <button class="ghost magnet" onclick="document.getElementById('ask').scrollIntoView()">Ask a question</button>
     </div>
   </div>
-  <div class="hero-num" id="heroSide">
+  <div class="hero-num" id="heroSide" aria-hidden="true">
     <div class="cube-wrap"><div class="cube">
       <i></i><i></i><i></i><i></i><i></i><i></i>
       <span class="core"><i></i><i></i><i></i><i></i><i></i><i></i></span>
@@ -483,7 +523,7 @@
   <p id="statementP">Not a chatbot on PDFs. CapScribe reads real filings — tables, footnotes, contradictions — and turns them into structured, verifiable, source-backed capital history that holds up when the work is real.</p>
 </div>
 
-<main>
+<main id="main">
   <section>
     <h2 class="rv"><span class="idx">00</span> Live Index</h2>
     <div class="stats rv d1" id="stats"></div>
@@ -493,7 +533,7 @@
     <h2 class="rv"><span class="idx">01</span> Semantic Search</h2>
     <p class="lede rv d1">Query the filing in <em>plain language</em>.<br/>No keyword syntax required.</p>
     <div class="bar rv d2">
-      <input type="text" id="q" placeholder="e.g. promoter allotments before the bonus issue" />
+      <input type="text" id="q" aria-label="Search the filing in plain language" placeholder="e.g. promoter allotments before the bonus issue" />
       <button class="magnet" onclick="runSearch()">Search</button>
     </div>
     <div class="hint rv d2">Press <kbd>/</kbd> to focus search · click a result to inspect the raw extracted JSON.</div>
@@ -504,7 +544,7 @@
     <h2 class="rv"><span class="idx">02</span> Ask the Filing</h2>
     <p class="lede rv d1">Investor-grade answers, <em>grounded</em> in cited events.</p>
     <div class="bar rv d2">
-      <input type="text" id="askInput" placeholder="e.g. what changed the authorised capital, and when?" />
+      <input type="text" id="askInput" aria-label="Ask a question about the filing" placeholder="e.g. what changed the authorised capital, and when?" />
       <button class="ghost on" id="modeBtn" onclick="toggleMode()">Mode: extractive</button>
       <button class="magnet" onclick="runAsk()">Ask</button>
     </div>
@@ -600,7 +640,7 @@
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     return r.json();
   }
-  function esc(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   function eventLine(e){
     const bits = [];
@@ -826,8 +866,15 @@
     box.innerHTML = `<div class="empty thinking">${mode === "llm" ? "Synthesising via Claude" : "Extracting"}</div>`;
     try {
       const r = await api("/ask", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({question:q, mode})});
-      const cites = (r.citations || []).map((c, i) =>
-        `<span class="cite" title="${esc(eventLine(c))}">[${i+1}] ${esc(String(c.event_type || "event").replace(/_/g," "))}${c.date ? " · " + esc(c.date) : ""}</span>`).join("");
+      const cites = (r.citations || []).map((c, i) => {
+        const page = c.page_number;
+        const section = (c.source_provenance && c.source_provenance.section) || c.section || "";
+        const excerpt = c.source_snippet ? String(c.source_snippet).slice(0, 200) : eventLine(c);
+        const tip = (section ? "§" + section + " — " : "") + excerpt;
+        const pageLbl = page != null ? ` <span class="cite-pg">(p. ${esc(String(page))})</span>` : "";
+        return `<span class="cite" data-page="${page != null ? esc(String(page)) : ""}" data-section="${esc(section)}" title="${esc(tip)}">` +
+          `[${i+1}] ${esc(String(c.event_type || "event").replace(/_/g," "))}${c.date ? " · " + esc(c.date) : ""}${pageLbl}</span>`;
+      }).join("");
       box.innerHTML = `<div class="answer">${esc(r.answer)}${cites ?
         `<div class="cites"><span class="cites-l">Grounded in ${r.citations.length} extracted event${r.citations.length > 1 ? "s" : ""}</span>${cites}</div>` : ""}</div>`;
     } catch(e){ box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }

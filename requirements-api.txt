@@ -6,3 +6,13 @@ chromadb==1.5.9
 langgraph==1.2.2
 pydantic-settings==2.14.1
 python-dotenv==1.2.2
+
+# hybrid retrieval (BM25 sparse layer fused with dense via RRF)
+rank-bm25==0.2.2
+
+# table extraction + OCR fallback for scanned / messy filings
+pdfplumber==0.11.9
+pytesseract==0.3.13        # requires the system `tesseract` binary for OCR
+
+# PDF upload handling for POST /ingest
+python-multipart==0.0.29

@@ -56,3 +56,24 @@ def test_ask_extractive(store):
 def test_ask_bad_mode(store):
     r = _client(store).post("/ask", json={"question": "x", "mode": "nope"})
     assert r.status_code == 400
+
+
+def test_verify_endpoint(store):
+    r = _client(store).post("/verify")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["checked"] == store.count()
+    assert isinstance(body["consistent"], bool)
+    assert "by_check" in body
+
+
+def test_ingest_rejects_non_pdf(store):
+    r = _client(store).post(
+        "/ingest", files={"file": ("notes.txt", b"not a pdf", "text/plain")}
+    )
+    assert r.status_code == 400
+
+
+def test_ingest_status_unknown_job(store):
+    r = _client(store).get("/ingest/status/does-not-exist")
+    assert r.status_code == 404

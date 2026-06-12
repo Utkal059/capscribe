@@ -13,6 +13,13 @@ HARD RULES:
    Always preserve original formatting in source_paragraph. 
    In the normalized_amount field, convert to integer (paise or paisa-denominated).
 5. Output ONLY valid JSON. No markdown fences. No preamble. No explanation outside JSON.
+6. PAGE ATTRIBUTION: the input text contains [PAGE n] markers before each page.
+   Every extracted event MUST include:
+     - "page_number": integer — the n from the [PAGE n] marker the event's text appears under.
+     - "source_snippet": string — the EXACT verbatim 1-2 sentences from that page that
+       state the event. Copied character-for-character. Never paraphrased.
+   If you cannot determine the page for an event, set "page_number": null.
+   NEVER guess or invent a page number.
 
 CAPITAL EVENT TAXONOMY (use these exact strings for event_type):
 - "Allotment of Equity Shares"
@@ -26,7 +33,17 @@ CAPITAL EVENT TAXONOMY (use these exact strings for event_type):
 - "Share Consolidation"
 - "Buyback of Shares"
 - "Reduction of Capital"
+- "Dividend Declaration"
+- "Warrant Exercise"
 - "Other Capital Event" (use only if none of the above fit — explain in validation_reasoning)
+
+EXTENDED EVENT FIELDS (capture when the event type calls for it):
+- Dividend Declaration: amount_per_share, record_date, payment_date, total_outflow.
+- Buyback of Shares / Share Repurchase: securities_count (shares bought back),
+  price, consideration, remaining_buyback_authority.
+- Warrant Exercise: warrants_exercised, securities_count (shares issued),
+  exercise_price, consideration.
+These broaden coverage beyond DRHPs to annual reports and financial statements.
 
 OUTPUT SCHEMA:
 {
