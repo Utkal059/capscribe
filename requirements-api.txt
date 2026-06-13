@@ -16,3 +16,7 @@ pytesseract==0.3.13        # requires the system `tesseract` binary for OCR
 
 # PDF upload handling for POST /ingest
 python-multipart==0.0.29
+
+# Claude SDK — only used by POST /ask?mode=llm and POST /report?mode=llm.
+# The server boots and serves extractive search/ask/report without a key.
+anthropic>=0.40.0

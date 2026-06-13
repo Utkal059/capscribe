@@ -67,6 +67,28 @@ def test_verify_endpoint(store):
     assert "by_check" in body
 
 
+def test_report_endpoint(store):
+    r = _client(store).post("/report", json={"mode": "extractive"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["event_count"] == store.count()
+    assert body["mode"] == "extractive"
+    assert body["markdown"].startswith("# Capital History Report")
+    assert "verification" in body
+    assert isinstance(body["citations"], list)
+
+
+def test_report_rejects_bad_mode(store):
+    r = _client(store).post("/report", json={"mode": "bogus"})
+    assert r.status_code == 400
+
+
+def test_report_custom_title(store):
+    r = _client(store).post("/report", json={"title": "Sample Filing — Brief"})
+    assert r.status_code == 200
+    assert r.json()["title"] == "Sample Filing — Brief"
+
+
 def test_ingest_rejects_non_pdf(store):
     r = _client(store).post(
         "/ingest", files={"file": ("notes.txt", b"not a pdf", "text/plain")}

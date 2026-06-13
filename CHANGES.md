@@ -71,3 +71,27 @@ new logic.
 
 ## Test status
 `pytest tests/ -v` → **61 passed** (40 pre-existing + 21 new), no failures.
+
+---
+
+## Addendum — report generation (closes the agentic-workflow trio)
+
+The JD asks for "agentic workflows for reasoning, **verification, and report
+generation**." Reasoning (`agent.py`) and verification (`verification.py`)
+were already present; report generation was the remaining gap. Added:
+
+| File | What it does |
+|------|--------------|
+| `report.py` | `generate_report(events, mode, title)` → `CapitalReport`. Computes the **facts in Python** (chronological timeline, per-type rollups, headline capital metrics, embedded verification) so figures are deterministic and never hallucinated, attaches an **inline `(p. N)` page citation** to every claim (pages never invented — same rule as `schema.citation_from_hit`), and renders a Markdown brief. `mode="extractive"` is free/offline; `mode="llm"` adds a Claude-written executive summary **over the computed skeleton only**, and falls back to extractive if the call fails. |
+| `tests/test_report.py` | Rollup metrics, chronological ordering, page-only citation rule, embedded verification (clean + planted continuity break), Markdown rendering with citations, custom title, empty-input safety. |
+
+### Modified
+| File | Change |
+|------|--------|
+| `api.py` | Added `POST /report` `{mode, title}` → structured fields + rendered Markdown. No change to existing endpoints. |
+| `tests/test_api.py` | Added `/report` happy-path, bad-mode (400), and custom-title tests. |
+| `requirements-api.txt` | Added `anthropic` so `/ask?mode=llm` and `/report?mode=llm` work from the documented quickstart (server still boots and serves extractive routes without a key). |
+| `README.md` | Refreshed to the live numbers (F1 0.968, 73 tests), full endpoint table, and the new report stage. |
+
+### Test status
+`pytest tests/ -q` → **73 passed** (61 prior + 12 new), no failures.
