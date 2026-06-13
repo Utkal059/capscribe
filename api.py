@@ -8,6 +8,9 @@ internal tools using FastAPI" line item in the JD. Endpoints:
     GET  /events          list events (optional ?event_type= & ?limit=)
     POST /search          semantic search  {query, k}
     POST /ask             agentic RAG      {question, mode}
+    POST /verify          full-corpus contradiction report
+    POST /report          source-backed capital-history brief {mode, title}
+    POST /ingest          PDF upload -> OCR fallback + table extraction
     POST /index           rebuild the index from a different extracted JSON
 
 The index is built once on startup from settings.events_path using local
@@ -31,6 +34,7 @@ from pathlib import Path
 from agent import CapScribeAgent
 from config import settings
 from ocr import ocr_available, process_document
+from report import generate_report
 from retrieval import EventStore, HybridRetriever, load_events
 from table_extractor import TableExtractor, merge_with_dedup
 from verification import events_from_store, verify_report
@@ -75,6 +79,11 @@ class AskRequest(BaseModel):
 
 class IndexRequest(BaseModel):
     events_path: str
+
+
+class ReportRequest(BaseModel):
+    mode: str = "extractive"  # "extractive" (free) | "llm" (Claude summary)
+    title: str | None = None
 
 
 def _build(events_path: str) -> int:
@@ -159,6 +168,20 @@ def verify() -> dict:
     """Run full-corpus consistency verification (timeline / continuity / arithmetic)."""
     events = events_from_store(_retriever())
     return verify_report(events).model_dump()
+
+
+@app.post("/report")
+def report(req: ReportRequest) -> dict:
+    """Generate a source-backed capital-history brief over the indexed filing.
+
+    ``mode="extractive"`` (default) is free and deterministic; ``mode="llm"``
+    adds a Claude-written executive summary over the same computed facts.
+    Returns structured fields plus a rendered Markdown brief.
+    """
+    if req.mode not in ("extractive", "llm"):
+        raise HTTPException(400, "mode must be 'extractive' or 'llm'")
+    events = events_from_store(_retriever())
+    return generate_report(events, mode=req.mode, title=req.title).model_dump()
 
 
 @app.post("/ingest")

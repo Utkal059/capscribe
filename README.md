@@ -4,7 +4,7 @@
 
 [![Tests](https://github.com/Utkal059/capscribe/actions/workflows/tests.yml/badge.svg)](https://github.com/Utkal059/capscribe/actions)
 
-CapScribe parses dense regulatory PDF documents (DRHPs, IPO prospectuses) and extracts structured capital event data — allotments, bonus issues, rights issues, and authorised capital changes — into clean, machine-readable JSON. Built for analysts, quant researchers, and fintech pipelines that need reliable signal from unstructured filings.
+CapScribe parses dense regulatory PDF documents (DRHPs, IPO prospectuses, annual reports) and extracts structured capital event data — allotments, bonus issues, rights issues, authorised-capital changes, dividends, buybacks, and warrant exercises — into clean, machine-readable JSON. Every event is traceable back to the exact page and verbatim text it came from. Built for analysts, quant researchers, and fintech pipelines that need reliable signal from unstructured filings.
 
 ## Demo
 
@@ -26,43 +26,70 @@ Structured investor intelligence synthesised from raw DRHP events via Claude.
 | Bonus Issues | Date, ratio, pre/post share count |
 | Rights Issues | Date, ratio, price, record date |
 | Authorised Capital Changes | Date, from/to amount, resolution type |
+| Dividends | Date, amount per share, record/payment date, total outflow |
+| Share Repurchases | Date, shares bought back, remaining authority |
+| Warrant Exercises | Date, warrants exercised, exercise price |
 
 ## Architecture
 
 - **Extraction** — PDF parser producing structured JSON events per `schema.py`
-- **Retrieval** — ChromaDB vector store with all-MiniLM-L6-v2 embeddings
-- **Agent** — LangGraph ReAct loop over `search_events` / `get_event_detail` tools
-- **API** — FastAPI service (`/health`, `/stats`, `/search`, `/ask`)
-- **Frontend** — Financial terminal UI (dark theme, semantic search, extractive + LLM QA)
+- **Tables** — direct `pdfplumber` table extraction (`table_extractor.py`), merged-cell aware, preferred over LLM events on a fuzzy match
+- **OCR** — scanned-page fallback (`ocr.py`) via tesseract, degrades gracefully when the binary is absent
+- **Retrieval** — hybrid BM25 + ChromaDB vectors fused with reciprocal rank fusion (`retrieval.py`); an auto-alpha heuristic leans toward BM25 for numeric queries
+- **Agent** — observable LangGraph state machine `retrieve → grade → synthesize → validate` (`agent.py`)
+- **Verification** — deterministic contradiction checks: timeline / capital-continuity / bonus-arithmetic (`verification.py`)
+- **Report** — source-backed capital-history brief with inline page citations (`report.py`)
+- **API** — FastAPI service (`api.py`)
+- **Frontend** — financial terminal UI (dark theme, semantic search, extractive + LLM QA, citation pills)
+
+## API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | liveness; reports retrieval mode and `ocr_available` |
+| `GET /stats` | event counts by type |
+| `GET /events` | list events (optional `?event_type=` & `?limit=`) |
+| `POST /search` | hybrid search `{query, k, alpha}` |
+| `POST /ask` | agentic RAG `{question, mode}` (extractive / llm) |
+| `POST /verify` | full-corpus contradiction report |
+| `POST /report` | source-backed capital-history brief `{mode, title}` |
+| `POST /ingest` | PDF upload → OCR fallback → table extraction |
+| `POST /index` | rebuild the index from a different extracted JSON |
 
 ## Evaluation (sample DRHP)
 
 | Metric | Score |
 |---|---|
 | Precision | 1.000 |
-| Recall | 0.857 |
-| F1 | 0.923 |
+| Recall | 0.938 |
+| F1 | 0.968 |
+
+Per-event-type and per-extraction-method breakdowns are emitted by `evaluate.py`; retrieval quality (nDCG@5, MRR — dense vs hybrid) by `benchmark_retrieval.py`.
 
 ## Quickstart
 
 ```bash
-cp .env.example .env          # add ANTHROPIC_API_KEY
-pip install -r requirements-api.txt
+cp .env.example .env          # add ANTHROPIC_API_KEY (only needed for llm modes)
+pip install -r requirements.txt -r requirements-api.txt
 uvicorn api:app --reload
 # open http://localhost:8000
 ```
 
+The index builds on startup from `fixtures/sample_events.json` using local embeddings, so search / ask / verify / report all run with **zero API spend**. Only `mode="llm"` calls Claude.
+
 ## Tests
 
 ```bash
-pytest -q   # 15 passed
+pip install -r requirements.txt -r requirements-api.txt -r requirements-dev.txt
+pytest -q   # 73 passed
 ```
 
-## Eval Harness
+## Eval & Benchmarks
 
 ```bash
 python evaluate.py fixtures/sample_events.json fixtures/gold_events.json
-```   
+python benchmark_retrieval.py          # nDCG@5 + MRR, dense vs hybrid
+```
 
 ## License
 
