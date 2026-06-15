@@ -111,7 +111,9 @@ def parse_date(cell: str | None) -> Optional[str]:
     """
     if cell is None:
         return None
-    raw = str(cell).strip()
+    # Collapse internal whitespace so wrapped cells ("January 31,\n2019")
+    # match the date formats below instead of falling through to raw.
+    raw = " ".join(str(cell).split())
     if not raw:
         return None
     for fmt in _DATE_FORMATS:
@@ -170,7 +172,13 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
     if not headers or not chunk.rows:
         return []
 
-    date_i = _find_col(headers, "date of allotment", "date")
+    # Strict allotment date: a bare "date" needle also matched "date of
+    # acquisition" / "date of transfer" tables, mis-typing secondary share
+    # acquisitions as primary allotments. The allotment branch uses this
+    # strict column; bonus / authorised keep the looser date_i for their
+    # own date field (they're gated by ratio / increased-from-to anyway).
+    allot_date_i = _find_col(headers, "date of allotment")
+    date_i = _find_col(headers, "date of allotment", "date of resolution", "record date", "date")
     shares_i = _find_col(headers, "no. of shares", "number of shares", "no of shares",
                          "no. of equity", "number of equity", "shares allotted", "shares")
     face_i = _find_col(headers, "face value")
@@ -224,10 +232,11 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
                 events.append({**ev, **_provenance(chunk, row_text)})
                 continue
 
-        # allotment — date + a share count is the signature.
-        if date_i is not None and shares_i is not None:
+        # allotment — a "date of allotment" column + a share count is the
+        # signature (strict date column keeps acquisitions/transfers out).
+        if allot_date_i is not None and shares_i is not None:
             shares = parse_int(cell(row, shares_i))
-            date = parse_date(cell(row, date_i))
+            date = parse_date(cell(row, allot_date_i))
             if shares is not None and date is not None:
                 ev = {
                     "event_type": "allotment",
@@ -239,8 +248,11 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
                 }
                 events.append({**ev, **_provenance(chunk, row_text)})
 
-    logger.info("table p%d (%s): %d events", chunk.page_num,
-                chunk.source_section or "—", len(events))
+    # Only surface tables that actually produced events; a long filing has
+    # hundreds of non-capital tables and logging each at INFO is just noise.
+    if events:
+        logger.info("table p%d (%s): %d events", chunk.page_num,
+                    chunk.source_section or "—", len(events))
     return events
 
 

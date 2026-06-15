@@ -10,7 +10,9 @@ internal tools using FastAPI" line item in the JD. Endpoints:
     POST /ask             agentic RAG      {question, mode}
     POST /verify          full-corpus contradiction report
     POST /report          source-backed capital-history brief {mode, title}
-    POST /ingest          PDF upload -> OCR fallback + table extraction
+    POST /ingest          PDF upload -> background OCR + table extraction (?llm=true adds Claude)
+    GET  /ingest/status/{job_id}   poll an ingest job
+    POST /ingest/{job_id}/index    promote an ingested filing to the live corpus
     POST /index           rebuild the index from a different extracted JSON
 
 The index is built once on startup from settings.events_path using local
@@ -21,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import tempfile
 import uuid
 from contextlib import asynccontextmanager
@@ -87,17 +90,27 @@ class ReportRequest(BaseModel):
     title: str | None = None
 
 
-def _build(events_path: str) -> int:
+def _index_events(events: list[dict], source: str) -> int:
+    """Rebuild the live corpus (vector + BM25 + agent) from event dicts.
+
+    Shared by startup (from the fixture JSON) and by ``/ingest/{id}/index``
+    (from a freshly uploaded filing), so an ingested PDF can become the
+    corpus that search / ask / verify / report all answer against.
+    """
     store = EventStore()  # default local embeddings, persistent
-    n = store.index_events(load_events(events_path))
+    n = store.index_events(events)
     hybrid = HybridRetriever(store)
     hybrid.save(BM25_PICKLE)
     state["store"] = store
     state["hybrid"] = hybrid
     state["agent"] = CapScribeAgent(hybrid)
-    state["source"] = events_path
-    logger.info("indexed %d events from %s (hybrid BM25+vector)", n, events_path)
+    state["source"] = source
+    logger.info("indexed %d events from %s (hybrid BM25+vector)", n, source)
     return n
+
+
+def _build(events_path: str) -> int:
+    return _index_events(load_events(events_path), events_path)
 
 
 def _retriever():
@@ -185,18 +198,53 @@ def report(req: ReportRequest) -> dict:
     return generate_report(events, mode=req.mode, title=req.title).model_dump()
 
 
-def _process_ingest(job_id: str, tmp_path: str, filename: str) -> None:
+def _llm_events(text_by_page: dict[int, str], max_pages: int = 30) -> list[dict]:
+    """Optional LLM extraction over capital-relevant pages (opt-in; costs API).
+
+    Bounded to the first ``max_pages`` pages that carry capital-event signals
+    so a 400-page filing can't trigger hundreds of paid calls. Returns []
+    (with a warning) when no API key is configured, so the free table path
+    always still works.
+    """
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        logger.warning("LLM ingest requested but ANTHROPIC_API_KEY is unset; skipping")
+        return []
+    from extractor import attach_provenance, call_claude  # lazy: keeps free path import-light
+    from table_extractor import CAPITAL_SIGNALS
+
+    relevant = sorted(
+        p for p, t in text_by_page.items()
+        if any(s in (t or "").lower() for s in CAPITAL_SIGNALS)
+    )[:max_pages]
+    events: list[dict] = []
+    for p in relevant:
+        try:
+            events.extend(call_claude(f"[PAGE {p}]\n{text_by_page[p]}"))
+        except Exception as exc:  # one bad page shouldn't sink the whole pass
+            logger.warning("LLM extraction failed on page %s: %s", p, exc)
+    events = attach_provenance(events, text_by_page)
+    for ev in events:  # tag origin so /ingest method counts stay honest
+        prov = ev.setdefault("source_provenance", {})
+        prov["extraction_method"] = "llm"
+    logger.info("LLM pass: %d events over %d capital pages", len(events), len(relevant))
+    return events
+
+
+def _process_ingest(job_id: str, tmp_path: str, filename: str, use_llm: bool = False) -> None:
     """Run the heavy PDF work (OCR scan + table extraction) for one job.
 
     Synchronous and CPU-bound, so it runs in a worker thread (see ``/ingest``)
     rather than on the event loop. Results — including the extracted ``events``
-    array the UI renders — are written back into ``JOBS[job_id]``.
+    array the UI renders — are written back into ``JOBS[job_id]``. When
+    ``use_llm`` is set, a bounded Claude pass is merged in (table wins on a
+    fuzzy match) to also catch prose-narrated events.
     """
     path = Path(tmp_path)
     try:
         doc = process_document(path)
         table_events = TableExtractor().extract_events(path)
-        merged = merge_with_dedup(table_events, [])
+        llm_events = _llm_events(doc["text_by_page"]) if use_llm else []
+        merged = merge_with_dedup(table_events, llm_events)
         method_counts: dict[str, int] = {}
         for ev in merged:
             m = (ev.get("source_provenance") or {}).get("extraction_method", "table")
@@ -224,14 +272,16 @@ def _process_ingest(job_id: str, tmp_path: str, filename: str) -> None:
 
 
 @app.post("/ingest")
-async def ingest(file: UploadFile = File(...)) -> dict:
+async def ingest(file: UploadFile = File(...), llm: bool = False) -> dict:
     """Accept a PDF, start extraction in the background, return a job id.
 
     A large filing takes a couple of minutes to parse, so the work runs in a
     worker thread and the client polls ``GET /ingest/status/{job_id}`` for the
     result. Returning immediately keeps the event loop (and every other
-    request) responsive and avoids upstream gateway timeouts. LLM extraction
-    is intentionally not invoked here (no API spend).
+    request) responsive and avoids upstream gateway timeouts.
+
+    ``?llm=true`` additionally runs a bounded Claude extraction pass (uses API
+    credits); the default is the free, deterministic table path only.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "a .pdf file is required")
@@ -244,7 +294,7 @@ async def ingest(file: UploadFile = File(...)) -> dict:
     # Fire-and-forget on the default thread-pool executor; the worker updates
     # JOBS when finished. We don't await it, so the response returns at once.
     asyncio.get_running_loop().run_in_executor(
-        None, _process_ingest, job_id, str(tmp_path), file.filename
+        None, _process_ingest, job_id, str(tmp_path), file.filename, llm
     )
     return {"job_id": job_id, "filename": file.filename, "status": "processing"}
 
@@ -256,6 +306,26 @@ def ingest_status(job_id: str) -> dict:
     if job is None:
         raise HTTPException(404, f"unknown job: {job_id}")
     return job
+
+
+@app.post("/ingest/{job_id}/index")
+def ingest_index(job_id: str) -> dict:
+    """Promote a finished ingest job's events to the live corpus.
+
+    Re-indexes search / ask / verify / report onto the uploaded filing so the
+    whole product answers about *that* document instead of the seed fixtures.
+    """
+    job = JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(404, f"unknown job: {job_id}")
+    if job.get("status") != "done":
+        raise HTTPException(409, f"job not finished (status: {job.get('status')})")
+    events = job.get("events") or []
+    if not events:
+        raise HTTPException(400, "this job extracted no events to index")
+    source = f"ingest:{job.get('filename') or job_id}"
+    n = _index_events(events, source)
+    return {"indexed": n, "source": source, "job_id": job_id, "stats": state["store"].stats()}
 
 
 @app.get("/")

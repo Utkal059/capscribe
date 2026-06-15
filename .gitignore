@@ -10,3 +10,4 @@ results/
 .cache/
 .chroma/ 
 build/
+.venv/

@@ -477,15 +477,15 @@
         <div class="track"><i class="fill" data-w="100"></i></div>
       </div>
       <div class="metric rv d2">
-        <div class="row"><span class="name">Recall</span><span class="val" data-target="0.857">0.000</span></div>
+        <div class="row"><span class="name">Recall</span><span class="val" data-target="0.900">0.000</span></div>
         <div class="track"><i class="fill" data-w="85.7"></i></div>
       </div>
       <div class="metric rv d3">
-        <div class="row"><span class="name">F1</span><span class="val" data-target="0.923">0.000</span></div>
+        <div class="row"><span class="name">F1</span><span class="val" data-target="0.947">0.000</span></div>
         <div class="track"><i class="fill" data-w="92.3"></i></div>
       </div>
     </div>
-    <p class="eval-note rv d4">Scored on a sample DRHP via <code>python evaluate.py fixtures/sample_events.json fixtures/gold_events.json</code></p>
+    <p class="eval-note rv d4">Measured on the <em>real</em> Ola Electric DRHP (allotment tables, hand-verified gold) via <code>python evaluate.py fixtures/ola_drhp_extracted.json fixtures/ola_drhp_gold.json</code> — 0 false positives; the single miss is an allotment whose share count sits in prose, not a column.</p>
   </section>
 
   <!-- ─── 06 INGEST ─── -->
@@ -511,6 +511,11 @@
       <div class="drop-hint">Max file size: 50 MB</div>
       <input type="file" id="pdfFile" accept=".pdf" aria-hidden="true" onchange="uploadPDF(this.files[0])">
     </div>
+
+    <label class="rv d2" style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--muted);cursor:pointer;">
+      <input type="checkbox" id="ingestLlm" style="accent-color:var(--amber);width:14px;height:14px;">
+      Also run an LLM extraction pass <span style="opacity:.7;">· catches prose-narrated events · uses API credits</span>
+    </label>
 
     <div class="progress-bar" id="ingestProgress"><i id="ingestBar"></i></div>
 
@@ -836,7 +841,8 @@
     fd.append("file", file);
 
     try {
-      const r1 = await fetch(API + "/ingest", {method:"POST", body: fd});
+      const useLlm = document.getElementById("ingestLlm")?.checked ? "?llm=true" : "";
+      const r1 = await fetch(API + "/ingest" + useLlm, {method:"POST", body: fd});
       if (!r1.ok) throw new Error((await r1.json()).detail || r1.statusText);
       const job = await r1.json();
       const jid = job.job_id;
@@ -855,7 +861,7 @@
           bar.style.width = "100%";
           const events = data.events || [];
           setIngestStatus("✅", `Extracted ${events.length} event${events.length!==1?"s":""} from ${file.name}`, `job_id: ${jid}`, true);
-          renderExtractedEvents(events, results);
+          renderExtractedEvents(events, results, jid);
           setTimeout(() => { progress.classList.remove("show"); bar.style.width = "0%"; }, 1500);
         } else if (data.status === "error" || data.status === "failed"){
           done = true;
@@ -870,9 +876,12 @@
     }
   }
 
-  function renderExtractedEvents(events, container){
+  function renderExtractedEvents(events, container, jid){
     if (!events.length){ container.innerHTML = `<div class="empty" style="margin-top:16px">No events extracted. Try a different PDF.</div>`; return; }
-    container.innerHTML = `<div class="events-summary"><strong>${events.length} event${events.length!==1?"s":""}</strong> extracted — click any card to inspect raw JSON</div>` +
+    const indexBtn = jid
+      ? `<button class="magnet" id="indexBtn" style="margin:6px 0 18px;background:transparent;color:var(--amber);border:1px solid var(--amber-dim);" onclick="indexFiling('${jid}', this)">Index this filing → make it the live corpus</button>`
+      : "";
+    container.innerHTML = `<div class="events-summary"><strong>${events.length} event${events.length!==1?"s":""}</strong> extracted — click any card to inspect raw JSON</div>` + indexBtn +
       `<div class="event-grid">${events.map((ev, i) => `
         <div class="event-pill" style="animation-delay:${i*60}ms" onclick="this.querySelector('pre').style.display=this.querySelector('pre').style.display==='none'?'block':'none'">
           <div class="ep-type">
@@ -882,6 +891,20 @@
           <div style="color:var(--muted);font-size:11px;margin-bottom:8px;">${esc(eventLine(ev))}</div>
           <pre style="display:none">${esc(JSON.stringify(ev, null, 2))}</pre>
         </div>`).join("")}</div>`;
+  }
+
+  async function indexFiling(jid, btn){
+    btn.disabled = true; const prev = btn.textContent; btn.textContent = "Indexing…";
+    try {
+      const r = await api("/ingest/" + jid + "/index", {method:"POST"});
+      btn.textContent = `✓ Indexed ${r.indexed} events — now the live corpus. Try Search / Ask / Report.`;
+      btn.style.color = "var(--green, #3fb950)";
+      btn.style.borderColor = "var(--green, #3fb950)";
+      await boot();  // refresh header source pill + live-index counts onto the uploaded filing
+    } catch(e){
+      btn.disabled = false; btn.textContent = prev;
+      setIngestStatus("❌", "Index failed: " + e.message, "", true);
+    }
   }
 
   /* ---- VERIFY ---- */

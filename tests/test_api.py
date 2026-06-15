@@ -99,3 +99,18 @@ def test_ingest_rejects_non_pdf(store):
 def test_ingest_status_unknown_job(store):
     r = _client(store).get("/ingest/status/does-not-exist")
     assert r.status_code == 404
+
+
+def test_ingest_index_unknown_job(store):
+    r = _client(store).post("/ingest/does-not-exist/index")
+    assert r.status_code == 404
+
+
+def test_ingest_index_unfinished_job(store):
+    c = _client(store)
+    api.JOBS["pending-job"] = {"job_id": "pending-job", "status": "processing"}
+    try:
+        r = c.post("/ingest/pending-job/index")
+        assert r.status_code == 409
+    finally:
+        api.JOBS.pop("pending-job", None)

@@ -1,0 +1,16 @@
+{
+  "source_file": "Ola_Electric_Mobility_Limited_DRHP.pdf",
+  "note": "Hand-verified gold set of genuine equity-share ALLOTMENT events from the capital-structure tables (pages 84, 89, 126) of the real Ola Electric DRHP. Dates are the actual 'Date of Allotment' column values, transcribed directly from the filing. Rows that allot no new shares (reclassifications) are deliberately excluded. The eval identity key is event_type + date. The 2019-01-31 row is a genuine allotment whose share count appears only in prose (no numeric column), so the pure-table extractor cannot key it without the optional LLM pass.",
+  "capital_events": [
+    {"event_type": "allotment", "date": "2017-02-03"},
+    {"event_type": "allotment", "date": "2019-01-31"},
+    {"event_type": "allotment", "date": "2020-03-18"},
+    {"event_type": "allotment", "date": "2021-07-29"},
+    {"event_type": "allotment", "date": "2021-12-23"},
+    {"event_type": "allotment", "date": "2022-06-01"},
+    {"event_type": "allotment", "date": "2022-09-30"},
+    {"event_type": "allotment", "date": "2022-12-12"},
+    {"event_type": "allotment", "date": "2023-07-14"},
+    {"event_type": "allotment", "date": "2023-09-22"}
+  ]
+}

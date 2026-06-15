@@ -53,16 +53,28 @@ Structured investor intelligence synthesised from raw DRHP events via Claude.
 | `POST /ask` | agentic RAG `{question, mode}` (extractive / llm) |
 | `POST /verify` | full-corpus contradiction report |
 | `POST /report` | source-backed capital-history brief `{mode, title}` |
-| `POST /ingest` | PDF upload → OCR fallback → table extraction |
+| `POST /ingest` | PDF upload → OCR fallback → table extraction (background job; `?llm=true` adds a bounded Claude pass) |
+| `GET /ingest/status/{job_id}` | poll a running ingest job for its result |
+| `POST /ingest/{job_id}/index` | promote an ingested filing to the live corpus (search / ask / verify / report) |
 | `POST /index` | rebuild the index from a different extracted JSON |
 
-## Evaluation (sample DRHP)
+## Evaluation
+
+**Real document — Ola Electric DRHP** (allotment history tables, hand-verified gold set in `fixtures/ola_drhp_gold.json`):
 
 | Metric | Score |
 |---|---|
 | Precision | 1.000 |
-| Recall | 0.938 |
-| F1 | 0.968 |
+| Recall | 0.900 |
+| F1 | 0.947 |
+
+```bash
+python evaluate.py fixtures/ola_drhp_extracted.json fixtures/ola_drhp_gold.json
+```
+
+Zero false positives — acquisition/transfer tables are correctly *not* typed as allotments. The single miss is a genuine allotment whose share count appears only in prose (no numeric column); the optional `POST /ingest?llm=true` pass recovers that class of event.
+
+**Synthetic fixture** (full event-type coverage, known answers): Precision **1.000** · Recall **0.938** · F1 **0.968** via `python evaluate.py fixtures/sample_events.json fixtures/gold_events.json`.
 
 Per-event-type and per-extraction-method breakdowns are emitted by `evaluate.py`; retrieval quality (nDCG@5, MRR — dense vs hybrid) by `benchmark_retrieval.py`.
 
@@ -81,7 +93,7 @@ The index builds on startup from `fixtures/sample_events.json` using local embed
 
 ```bash
 pip install -r requirements.txt -r requirements-api.txt -r requirements-dev.txt
-pytest -q   # 73 passed
+pytest -q   # 75 passed
 ```
 
 ## Eval & Benchmarks

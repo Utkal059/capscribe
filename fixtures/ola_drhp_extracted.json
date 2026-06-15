@@ -1,0 +1,365 @@
+{
+  "source_file": "Ola_Electric_Mobility_Limited_DRHP.pdf",
+  "capital_events": [
+    {
+      "event_type": "allotment",
+      "date": "2017-02-03",
+      "shares": 10000,
+      "face_value": 10.0,
+      "issue_price": 10.0,
+      "consideration": "allotment pursuant to initial subscription to the memorandum of association*",
+      "page_number": 84,
+      "page": 84,
+      "source_snippet": "February 3, 2017 | Allotment pursuant to initial\nsubscription to the\nMemorandum of Association* | Cash | 10,000 | 100,000 | 10 | 10 | Allotment of 9,999 Equity Shares to ANI\nTechnologies Private Limit",
+      "bbox": [
+        72.59,
+        133.28,
+        804.26,
+        553.56
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 84,
+        "section": "The history of the equity share capital of our Company is set forth below:",
+        "bbox": [
+          72.59,
+          133.28,
+          804.26,
+          553.56
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2020-03-18",
+      "shares": 7,
+      "face_value": 10.0,
+      "issue_price": 10.0,
+      "consideration": "rights issue of class b equity shares",
+      "page_number": 84,
+      "page": 84,
+      "source_snippet": "March 18, 2020 | Rights issue of Class B Equity\nShares | Cash | 7 | 100,070 | 10 | 10 | Allotment of seven Class B Equity\nShares to Pawan Munjal Family Trust",
+      "bbox": [
+        72.59,
+        133.28,
+        804.26,
+        553.56
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 84,
+        "section": "The history of the equity share capital of our Company is set forth below:",
+        "bbox": [
+          72.59,
+          133.28,
+          804.26,
+          553.56
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2021-07-29",
+      "shares": 21,
+      "face_value": 10.0,
+      "issue_price": 10.0,
+      "consideration": "exercise of employee stock options granted under the esop scheme",
+      "page_number": 84,
+      "page": 84,
+      "source_snippet": "July 29, 2021 | Exercise of employee stock\noptions granted under the\nESOP Scheme | Cash | 21 | 100,280 | 10 | 10 | Allotment of 21 Equity Shares to Chirag\nR. Shah",
+      "bbox": [
+        72.59,
+        133.28,
+        804.26,
+        553.56
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 84,
+        "section": "The history of the equity share capital of our Company is set forth below:",
+        "bbox": [
+          72.59,
+          133.28,
+          804.26,
+          553.56
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2021-12-23",
+      "shares": 1955439944,
+      "face_value": 10.0,
+      "issue_price": null,
+      "consideration": "bonus issue of equity shares in the ratio of 194,998 equity shares for every one equity share held by such holders of equity shares of our company, whose names appear in the list of beneficial owners on the record date, i.e., december 23, 2021",
+      "page_number": 84,
+      "page": 84,
+      "source_snippet": "December 23, 2021 | Bonus issue of Equity Shares\nin the ratio of 194,998 Equity\nShares for every one Equity\nShare held by such holders of\nEquity Shares of our\nCompany, whose names\nappear in the list o",
+      "bbox": [
+        72.59,
+        133.28,
+        804.26,
+        553.56
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 84,
+        "section": "The history of the equity share capital of our Company is set forth below:",
+        "bbox": [
+          72.59,
+          133.28,
+          804.26,
+          553.56
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2022-06-01",
+      "shares": 4090392,
+      "face_value": null,
+      "issue_price": 63.11,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "June 1, 2022 | Nuvama Private\nInvestments Trust-\nNuvama Crossover\nOpportunities Fund -\nSeries III B | Edelweiss\nFinance &\nInvestments\nLimited | 4,090,392 | 63.11 | Cash | Transfer | 258,148,766",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2022-09-30",
+      "shares": 17,
+      "face_value": null,
+      "issue_price": 62.89,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "September 30, 2022 | Nuvama Private\nInvestments Trust-\nNuvama Crossover\nOpportunities Fund -\nSeries III B | Edelweiss\nFinance &\nInvestments\nLimited | 17 | 62.89 | Cash | Transfer | 1,090",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2022-09-30",
+      "shares": 3378974,
+      "face_value": null,
+      "issue_price": 62.89,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "September 30, 2022 | Nuvama Private\nInvestments Trust-\nNuvama Crossover\nOpportunities Fund -\nSeries III B | Edelweiss\nFinance &\nInvestments\nLimited | 3,378,974 | 62.89 | Cash | Transfer | 212,511,102",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2022-12-12",
+      "shares": 15792695,
+      "face_value": null,
+      "issue_price": 95.61,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "December 12, 2022 | MacRitchie Investments\nPte. Ltd. | Bhavish\nAggarwal | 15,792,695 | 95.61 | Cash | Transfer | 1,510,000,000",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2022-12-12",
+      "shares": 941286,
+      "face_value": null,
+      "issue_price": 95.61,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "December 12, 2022 | MacRitchie Investments\nPte. Ltd. | Amit Anchal | 941,286 | 95.61 | Cash | Transfer | 90,000,000",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2023-07-14",
+      "shares": 3179382,
+      "face_value": null,
+      "issue_price": 129.9,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "July 14, 2023 | Tekne Private Ventures\nXV, Ltd. | N.A. | 3,179,382 | 129.90 | Cash | Allotment | 413,000,000",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2023-09-22",
+      "shares": 6358765,
+      "face_value": null,
+      "issue_price": 129.9,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "September 22, 2023 | Internet Fund III Pte Ltd | N.A. | 6,358,765 | 129.90 | Cash | Allotment | 826,000,000",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    },
+    {
+      "event_type": "allotment",
+      "date": "2023-09-22",
+      "shares": 6485940,
+      "face_value": null,
+      "issue_price": 129.9,
+      "consideration": "cash",
+      "page_number": 126,
+      "page": 126,
+      "source_snippet": "September 22, 2023 | DIG Investment IV AB | N.A. | 6,485,940 | 129.90 | Cash | Allotment | 842,520,000",
+      "bbox": [
+        54.71,
+        170.51,
+        575.31,
+        462.55
+      ],
+      "confidence": 0.95,
+      "source_provenance": {
+        "page": 126,
+        "section": "Prospectus irrespective of the size of transactions:",
+        "bbox": [
+          54.71,
+          170.51,
+          575.31,
+          462.55
+        ],
+        "extraction_method": "table",
+        "confidence": 0.95
+      }
+    }
+  ]
+}
