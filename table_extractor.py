@@ -181,6 +181,11 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
     date_i = _find_col(headers, "date of allotment", "date of resolution", "record date", "date")
     shares_i = _find_col(headers, "no. of shares", "number of shares", "no of shares",
                          "no. of equity", "number of equity", "shares allotted", "shares")
+    # Mixed allotment/transfer tables (e.g. "date of allotment/transfer" with a
+    # "nature of transaction" = Allotment | Transfer column) list secondary
+    # share transfers alongside primary allotments. Only primary allotments are
+    # company issuances; when this column exists we keep only those rows.
+    nature_txn_i = _find_col(headers, "nature of transaction")
     face_i = _find_col(headers, "face value")
     price_i = _find_col(headers, "issue price", "price per")
     consid_i = _find_col(headers, "consideration", "nature of", "nature")
@@ -235,6 +240,10 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
         # allotment — a "date of allotment" column + a share count is the
         # signature (strict date column keeps acquisitions/transfers out).
         if allot_date_i is not None and shares_i is not None:
+            # In a mixed table, skip rows explicitly marked as a transfer /
+            # acquisition rather than an allotment.
+            if nature_txn_i is not None and "allotment" not in _norm(cell(row, nature_txn_i)):
+                continue
             shares = parse_int(cell(row, shares_i))
             date = parse_date(cell(row, allot_date_i))
             if shares is not None and date is not None:

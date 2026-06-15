@@ -317,20 +317,23 @@
 <nav aria-label="Primary">
   <span class="wordmark"><span class="cap">Cap</span>Scribe</span>
   <div class="links">
-    <a href="#search">Search</a>
-    <a href="#ask">Ask</a>
-    <a href="#pipeline">Pipeline</a>
-    <a href="#extracts">Extracts</a>
-    <a href="#eval">Eval</a>
-    <a href="#ingest">Ingest</a>
-    <a href="#verify">Verify</a>
-    <a href="#report">Report</a>
+    <a href="#search" title="Semantic search across indexed events">Search</a>
+    <a href="#ask" title="Natural language Q&amp;A grounded in cited events">Ask</a>
+    <a href="#pipeline" title="How a PDF becomes machine-readable capital history">Pipeline</a>
+    <a href="#extracts" title="Browse all extracted events as a sortable table">Extracts</a>
+    <a href="#eval" title="Precision / recall / F1 against a gold set">Eval</a>
+    <a href="#ingest" title="Upload a filing and extract events">Ingest</a>
+    <a href="#verify" title="Run contradiction and arithmetic checks">Verify</a>
+    <a href="#report" title="Generate a source-backed capital history brief">Report</a>
   </div>
-  <span class="status" role="status" aria-live="polite">
+  <span class="status" role="button" tabindex="0" aria-haspopup="true" title="Switch between ingested filings"
+        onclick="toggleSourceMenu()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSourceMenu();}">
     <span class="dot" id="dot" aria-hidden="true"></span>
     <span>Source: <b id="source">—</b></span>
     <span aria-hidden="true">·</span>
     <span><b id="indexed">0</b> events</span>
+    <span aria-hidden="true" style="opacity:.6;font-size:9px;">▼</span>
+    <div id="sourceMenu" class="src-menu"></div>
   </span>
   <button class="hamburger" id="hamburger" aria-label="Open navigation" onclick="toggleMobileMenu()">
     <span></span><span></span><span></span>
@@ -466,6 +469,16 @@
         <div class="d">Date · from/to amount · resolution type</div>
       </div>
     </div>
+
+    <div class="extracts-toolbar rv d2">
+      <select id="exType" onchange="renderExtractsTable()" aria-label="Filter by event type">
+        <option value="">All types</option>
+      </select>
+      <label class="ex-dr">From <input id="exFrom" type="date" onchange="renderExtractsTable()"></label>
+      <label class="ex-dr">To <input id="exTo" type="date" onchange="renderExtractsTable()"></label>
+      <button class="magnet ex-csv" onclick="exportExtractsCSV()">Export CSV</button>
+    </div>
+    <div id="extractsTable" class="rv d2"></div>
   </section>
 
   <section id="eval">
@@ -477,15 +490,15 @@
         <div class="track"><i class="fill" data-w="100"></i></div>
       </div>
       <div class="metric rv d2">
-        <div class="row"><span class="name">Recall</span><span class="val" data-target="0.900">0.000</span></div>
+        <div class="row"><span class="name">Recall</span><span class="val" data-target="0.857">0.000</span></div>
         <div class="track"><i class="fill" data-w="85.7"></i></div>
       </div>
       <div class="metric rv d3">
-        <div class="row"><span class="name">F1</span><span class="val" data-target="0.947">0.000</span></div>
+        <div class="row"><span class="name">F1</span><span class="val" data-target="0.923">0.000</span></div>
         <div class="track"><i class="fill" data-w="92.3"></i></div>
       </div>
     </div>
-    <p class="eval-note rv d4">Measured on the <em>real</em> Ola Electric DRHP (allotment tables, hand-verified gold) via <code>python evaluate.py fixtures/ola_drhp_extracted.json fixtures/ola_drhp_gold.json</code> — 0 false positives; the single miss is an allotment whose share count sits in prose, not a column.</p>
+    <p class="eval-note rv d4">Measured on the <em>real</em> Ola Electric DRHP (primary allotment tables, hand-verified gold) via <code>python evaluate.py fixtures/ola_drhp_extracted.json fixtures/ola_drhp_gold.json</code> — 0 false positives (secondary transfers correctly excluded); the single miss is an allotment whose share count sits in prose, not a column.</p>
   </section>
 
   <!-- ─── 06 INGEST ─── -->
@@ -551,7 +564,7 @@
       Generates a structured brief citing the exact page and event for every claim. Free — uses indexed events only.
     </p>
     <div class="report-controls rv d2">
-      <input type="text" id="reportTitle" placeholder="Report title (optional)" value="CapScribe Demo" style="max-width:320px;" />
+      <input type="text" id="reportTitle" placeholder="e.g. Ola Electric Capital History" style="max-width:320px;" />
       <div class="report-mode-toggle" role="group" aria-label="Report mode">
         <button class="active" id="rModeBrief" onclick="setReportMode('extractive')">Extractive</button>
         <button id="rModeFull" onclick="setReportMode('llm')">LLM</button>
@@ -567,6 +580,57 @@
   <span>Claude API · ChromaDB · LangGraph · FastAPI · <a href="https://github.com/Utkal059/capscribe" target="_blank" rel="noopener">github.com/Utkal059/capscribe</a></span>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  .report-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:4px 0 18px;}
+  .report-stats .rstat{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--panel);}
+  .report-stats .rn{font-size:22px;color:var(--amber);font-weight:600;}
+  .report-stats .rl{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em;}
+  .rtl-wrap{overflow-x:auto;margin:6px 0 20px;padding-bottom:8px;}
+  .rtl{display:flex;min-width:max-content;}
+  .rtl-item{flex:0 0 auto;min-width:160px;border-left:2px solid var(--amber-dim);padding:2px 16px 6px 14px;position:relative;}
+  .rtl-item::before{content:"";position:absolute;left:-5px;top:3px;width:8px;height:8px;border-radius:50%;background:var(--amber);}
+  .rtl-date{font-size:11px;color:var(--amber);font-weight:600;}
+  .rtl-head{font-size:11.5px;color:var(--text);margin:4px 0;line-height:1.35;}
+  .rtl-page{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 7px;}
+  .report-md{border-top:1px solid var(--line);margin-top:8px;padding-top:14px;font-size:13px;line-height:1.6;color:var(--text);}
+  .report-md h1{font-size:18px;}.report-md h2{font-size:15px;margin-top:16px;}.report-md ul{padding-left:18px;}
+  .report-md code{background:var(--panel);padding:1px 5px;border-radius:4px;}
+  .report-cites{margin-top:14px;font-size:12px;color:var(--muted);}
+  .report-cites summary{cursor:pointer;color:var(--amber);}
+  .report-cites ol{padding-left:22px;margin-top:8px;}.report-cites li{margin:5px 0;}
+  .report-warn{margin:6px 0 14px;border:1px solid #6b5a1e;border-radius:10px;background:rgba(200,168,75,0.06);padding:10px 14px;}
+  .report-warn summary{cursor:pointer;color:var(--amber);font-size:13px;}
+  .report-ok{margin:6px 0 14px;color:#3fb950;font-size:13px;}
+  .issue-card{border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:12px;}
+  .issue-card .ic-h{color:var(--amber);font-weight:600;}.issue-card .ic-x{color:var(--muted);margin-top:4px;line-height:1.5;}
+  .issue-card button{margin-top:8px;font-size:11px;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 10px;cursor:pointer;}
+  .report-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border:1px solid var(--amber-dim);color:var(--text);padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:9999;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .extracts-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 12px;}
+  .extracts-toolbar select,.extracts-toolbar input{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 10px;font:inherit;font-size:12px;}
+  .extracts-toolbar .ex-dr{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center;}
+  .extracts-toolbar .ex-csv{margin-left:auto;}
+  .ex-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;}
+  table.ex-table{width:100%;border-collapse:collapse;font-size:12px;min-width:760px;}
+  table.ex-table th{text-align:left;padding:10px 12px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none;}
+  table.ex-table th:hover{color:var(--amber);}
+  table.ex-table td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--text);vertical-align:top;}
+  table.ex-table tr.ex-row{cursor:pointer;}
+  table.ex-table tr.ex-row:hover{background:rgba(255,255,255,.02);}
+  table.ex-table tr.multi td{background:rgba(200,168,75,.07);}
+  table.ex-table tr.ex-json td{background:var(--panel);}
+  table.ex-table tr.ex-json pre{margin:0;font-size:11px;white-space:pre-wrap;}
+  .ex-empty{padding:22px;text-align:center;color:var(--muted);}
+  .status{position:relative;cursor:pointer;}
+  .src-menu{display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;z-index:200;box-shadow:0 12px 32px rgba(0,0,0,.5);text-align:left;}
+  .src-menu.open{display:block;}
+  .src-item{padding:8px 12px;border-radius:7px;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .src-item:hover{background:rgba(255,255,255,.04);}
+  .src-item.muted{color:var(--muted);cursor:default;}
+  .src-item.src-upload{border-top:1px solid var(--line);margin-top:4px;color:var(--amber);}
+</style>
 <script>
   const API = (location.origin.startsWith("http") && location.port !== "5500") ? "" : "http://localhost:8000";
   let mode = "extractive";
@@ -735,6 +799,7 @@
         Object.entries(s.by_type).map(([k,v]) =>
           `<div class="stat tilt"><div class="n" data-n="${v}">0</div><div class="l">${esc(k.replace(/_/g," "))}</div></div>`).join("");
       el.querySelectorAll(".n[data-n]").forEach(n => countUp(n, parseInt(n.dataset.n, 10)));
+      loadExtracts();
     } catch(e){
       document.getElementById("stats").innerHTML =
         `<div class="empty">Backend not reachable. Start it with <code>uvicorn api:app --reload</code>.</div>`;
@@ -860,6 +925,7 @@
           done = true;
           bar.style.width = "100%";
           const events = data.events || [];
+          rememberSource(file.name, jid);
           setIngestStatus("✅", `Extracted ${events.length} event${events.length!==1?"s":""} from ${file.name}`, `job_id: ${jid}`, true);
           renderExtractedEvents(events, results, jid);
           setTimeout(() => { progress.classList.remove("show"); bar.style.width = "0%"; }, 1500);
@@ -915,11 +981,14 @@
     panel.classList.remove("show");
     try {
       const r = await api("/verify", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({})});
-      const issues = (r.contradictions || r.issues || []).length;
-      const badge = issues === 0
-        ? `<span class="contradiction-badge clean">✓ No contradictions detected</span>`
-        : `<span class="contradiction-badge issues">⚠ ${issues} issue${issues!==1?"s":""} found</span>`;
-      panel.innerHTML = badge + `<pre>${esc(JSON.stringify(r, null, 2))}</pre>`;
+      const issues = r.issues || r.contradictions || [];
+      const n = reviewableCount(issues);
+      const badge = n === 0
+        ? `<span class="contradiction-badge clean">✓ No contradictions detected across ${r.checked ?? "all"} events</span>`
+        : `<span class="contradiction-badge issues">⚠ ${n} item${n!==1?"s":""} for review</span>`;
+      const cards = n ? issues.map(explainIssue).join("") : "";
+      panel.innerHTML = badge + cards +
+        `<details class="report-cites" style="margin-top:12px"><summary>raw JSON</summary><pre>${esc(JSON.stringify(r, null, 2))}</pre></details>`;
       panel.classList.add("show");
     } catch(e){
       panel.innerHTML = `<pre style="color:var(--red)">Error: ${esc(e.message)}</pre>`;
@@ -935,16 +1004,102 @@
     document.getElementById("rModeFull").classList.toggle("active", m === "llm");
   }
 
+  /* shared UI helpers */
+  function toast(msg){
+    let t = document.getElementById("toast");
+    if (!t){ t = document.createElement("div"); t.id = "toast"; document.body.appendChild(t); }
+    t.textContent = msg; t.className = "show";
+    clearTimeout(t._timer); t._timer = setTimeout(() => { t.className = ""; }, 2200);
+  }
+  function downloadBlob(filename, text, type){
+    const url = URL.createObjectURL(new Blob([text], {type}));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  /* contradiction display (shared by Verify + Report) — analyst-friendly,
+     dismissable, localStorage-persisted so dismissals survive a refresh */
+  function dismissedIssues(){ try { return JSON.parse(localStorage.getItem("capscribe_dismissed")||"[]"); } catch(e){ return []; } }
+  function issueKey(it){ return (it.check_type||"") + ":" + ((it.event_ids||[]).join(",")); }
+  function dismissIssue(key, el){
+    const d = dismissedIssues();
+    if (!d.includes(key)){ d.push(key); localStorage.setItem("capscribe_dismissed", JSON.stringify(d)); }
+    const card = el.closest(".issue-card"); if (card) card.remove();
+  }
+  function explainIssue(it){
+    const key = issueKey(it);
+    if (dismissedIssues().includes(key)) return "";
+    const extra = it.severity === "warning"
+      ? ""  // backend already explains multi-tranche same-price cases
+      : "<br>Multiple allotments on the same date may indicate a multi-tranche funding round. Verify allottee names match expected investors before treating this as a data inconsistency.";
+    return `<div class="issue-card"><div class="ic-h">⚠ Review Needed · ${esc(it.check_type||"")}</div>`
+      + `<div class="ic-x">${esc(it.description||"")}${extra}</div>`
+      + `<button onclick="dismissIssue('${key.replace(/['"\\]/g,"")}', this)">Dismiss</button></div>`;
+  }
+  function reviewableCount(issues){ const d = dismissedIssues(); return issues.filter(it => !d.includes(issueKey(it))).length; }
+
+  /* ---- REPORT (rich render) ---- */
+  let lastReport = null;
+  function copyReportJSON(){
+    navigator.clipboard.writeText(JSON.stringify(lastReport, null, 2))
+      .then(() => toast("Report JSON copied to clipboard"))
+      .catch(() => toast("Copy failed — clipboard unavailable"));
+  }
+  function renderReport(r, panel){
+    lastReport = r;
+    const m = r.metrics || {};
+    const fmt = n => (n == null ? "—" : Number(n).toLocaleString());
+    const cards = [
+      ["Total shares allotted", fmt(m.total_shares_allotted)],
+      ["Allotment events", fmt(m.allotment_events)],
+      ["Bonus issues", fmt(m.bonus_issues)],
+      ["Rights issues", fmt(m.rights_issues)],
+    ];
+    const statHtml = `<div class="report-stats">${cards.map(([l,v]) =>
+      `<div class="rstat"><div class="rn">${esc(v)}</div><div class="rl">${esc(l)}</div></div>`).join("")}</div>`;
+
+    const issues = (r.verification && r.verification.issues) || [];
+    const reviewable = reviewableCount(issues);
+    const verHtml = reviewable
+      ? `<details class="report-warn"><summary>⚠ ${reviewable} item${reviewable!==1?"s":""} for review</summary>${issues.map(explainIssue).join("")}</details>`
+      : `<div class="report-ok">✓ No contradictions across ${r.verification ? r.verification.checked : r.event_count} events</div>`;
+
+    const timeline = r.timeline || [];
+    const tlHtml = timeline.length ? `<div class="rtl-wrap"><div class="rtl">${timeline.map(ev => `
+      <div class="rtl-item">
+        <div class="rtl-date">${esc(ev.date||"—")}</div>
+        <div class="rtl-head">${esc(ev.headline||ev.event_type||"")}</div>
+        ${ev.page_number ? `<span class="rtl-page">p.${ev.page_number}</span>` : ""}
+      </div>`).join("")}</div></div>` : "";
+
+    const md = (r.markdown && window.marked) ? `<div class="report-md">${marked.parse(r.markdown)}</div>` : "";
+
+    const cites = r.citations || [];
+    const citeHtml = cites.length ? `<details class="report-cites" open><summary>${cites.length} citation${cites.length!==1?"s":""}</summary><ol>${cites.map(c => {
+      const s = (c.source_snippet || "").replace(/\s+/g," ");
+      return `<li><b>${esc(c.event_id||"")}</b> p.${c.page_number ?? "—"} — ${esc(s.slice(0,80))}${s.length>80?"…":""}</li>`;
+    }).join("")}</ol></details>` : "";
+
+    const fname = (r.title || "capital_history_report").replace(/[^a-z0-9]+/gi, "_");
+    const actions = `<div class="report-actions">
+      <button class="magnet" onclick="downloadBlob('${fname}.md', lastReport.markdown||'', 'text/markdown')">Download Markdown</button>
+      <button class="magnet" style="background:transparent;border:1px solid var(--amber-dim);color:var(--amber);" onclick="copyReportJSON()">Copy JSON</button>
+    </div>`;
+
+    panel.innerHTML = statHtml + verHtml + tlHtml + md + citeHtml + actions;
+    panel.classList.add("show");
+  }
+
   async function runReport(){
     const btn = document.getElementById("reportBtn");
     const panel = document.getElementById("reportResults");
-    const title = document.getElementById("reportTitle").value.trim() || "CapScribe Demo";
+    const title = document.getElementById("reportTitle").value.trim() || "Capital History Report";
     btn.disabled = true; btn.textContent = "Generating…";
     panel.classList.remove("show");
     try {
       const r = await api("/report", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({mode: reportMode , title})});
-      panel.innerHTML = `<pre>${esc(JSON.stringify(r, null, 2))}</pre>`;
-      panel.classList.add("show");
+      renderReport(r, panel);
     } catch(e){
       panel.innerHTML = `<pre style="color:var(--red)">Error: ${esc(e.message)}</pre>`;
       panel.classList.add("show");
@@ -961,6 +1116,134 @@
       document.getElementById("q").focus();
       document.getElementById("search").scrollIntoView({behavior:"smooth"});
     }
+  });
+
+  /* ---- EXTRACTS TABLE (Problem 3) ---- */
+  let extractEvents = [];
+  let exSort = { key: "date", dir: 1 };
+  const EX_COLS = [
+    ["#", null], ["Date","date"], ["Type","event_type"], ["Shares","shares"],
+    ["Issue Price (Rs.)","issue_price"], ["Consideration","consideration"],
+    ["Allottee","allottee"], ["Page","page_number"],
+  ];
+  function exAllottee(e){ return e.allottee_category || e.allottee || "—"; }
+  function exVal(e, key){
+    if (key === "allottee") return exAllottee(e);
+    if (key === "page_number") return e.page_number ?? e.page ?? "";
+    return e[key];
+  }
+  async function loadExtracts(){
+    try { extractEvents = (await api("/events?limit=1000")).events || []; }
+    catch(e){ extractEvents = []; }
+    const sel = document.getElementById("exType");
+    if (sel){
+      const types = [...new Set(extractEvents.map(e => e.event_type).filter(Boolean))].sort();
+      sel.innerHTML = `<option value="">All types</option>` +
+        types.map(t => `<option value="${esc(t)}">${esc(t.replace(/_/g," "))}</option>`).join("");
+    }
+    renderExtractsTable();
+  }
+  function exFiltered(){
+    const type = document.getElementById("exType")?.value || "";
+    const from = document.getElementById("exFrom")?.value || "";
+    const to = document.getElementById("exTo")?.value || "";
+    let rows = extractEvents.filter(e => {
+      if (type && e.event_type !== type) return false;
+      const d = e.date || "";
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+    const k = exSort.key;
+    if (k) rows = rows.slice().sort((a,b) => {
+      let va = exVal(a,k), vb = exVal(b,k);
+      if (k === "shares" || k === "issue_price" || k === "page_number")
+        return ((+va||0) - (+vb||0)) * exSort.dir;
+      return String(va ?? "").localeCompare(String(vb ?? "")) * exSort.dir;
+    });
+    return rows;
+  }
+  function sortExtracts(key){
+    if (!key) return;
+    exSort.dir = (exSort.key === key) ? -exSort.dir : 1;
+    exSort.key = key;
+    renderExtractsTable();
+  }
+  function toggleExRow(id){
+    const row = document.getElementById("exjson-"+id);
+    if (row) row.style.display = row.style.display === "none" ? "table-row" : "none";
+  }
+  function renderExtractsTable(){
+    const box = document.getElementById("extractsTable");
+    if (!box) return;
+    if (!extractEvents.length){
+      box.innerHTML = `<div class="ex-empty">No filing indexed yet. → Upload a PDF in <a href="#ingest" style="color:var(--amber)">Ingest</a> to begin.</div>`;
+      return;
+    }
+    const rows = exFiltered();
+    if (!rows.length){ box.innerHTML = `<div class="ex-empty">No events match the current filter.</div>`; return; }
+    const dateCounts = {};
+    extractEvents.forEach(e => { if (e.date) dateCounts[e.date] = (dateCounts[e.date]||0)+1; });
+    const arrow = key => exSort.key === key ? (exSort.dir>0 ? " ▲" : " ▼") : "";
+    const head = EX_COLS.map(([label,key]) => `<th onclick="sortExtracts(${key?`'${key}'`:'null'})">${esc(label)}${arrow(key)}</th>`).join("");
+    const body = rows.map((e, i) => {
+      const multi = e.date && dateCounts[e.date] > 1 ? " multi" : "";
+      const price = e.issue_price != null ? Number(e.issue_price).toLocaleString() : "—";
+      const shares = e.shares != null ? Number(e.shares).toLocaleString() : "—";
+      const consid = String(e.consideration || "—");
+      return `<tr class="ex-row${multi}" onclick="toggleExRow(${i})">
+        <td>${i+1}</td><td>${esc(e.date||"—")}</td><td>${esc((e.event_type||"").replace(/_/g," "))}</td>
+        <td>${esc(shares)}</td><td>${esc(price)}</td><td>${esc(consid.slice(0,40))}${consid.length>40?"…":""}</td>
+        <td>${esc(exAllottee(e))}</td><td>${e.page_number ?? e.page ?? "—"}</td></tr>
+      <tr class="ex-json" id="exjson-${i}" style="display:none"><td colspan="8"><pre>${esc(JSON.stringify(e, null, 2))}</pre></td></tr>`;
+    }).join("");
+    box.innerHTML = `<div class="ex-table-wrap"><table class="ex-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+  function exportExtractsCSV(){
+    const rows = exFiltered();
+    if (!rows.length){ toast("No events to export"); return; }
+    const cols = ["date","event_type","shares","face_value","issue_price","consideration","page_number"];
+    const cell = v => { const s = v==null ? "" : String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+    const csv = [cols.join(",")].concat(rows.map(e =>
+      cols.map(c => cell(c==="page_number" ? (e.page_number ?? e.page) : e[c])).join(","))).join("\n");
+    downloadBlob("capscribe_events.csv", csv, "text/csv");
+    toast(`Exported ${rows.length} events to CSV`);
+  }
+
+  /* ---- MULTI-FILE SOURCE SWITCHER (Problem 4) ---- */
+  function ingestedSources(){ try { return JSON.parse(localStorage.getItem("capscribe_sources")||"[]"); } catch(e){ return []; } }
+  function rememberSource(filename, jobId){
+    if (!filename) return;
+    const list = ingestedSources().filter(s => s.filename !== filename);
+    list.unshift({ filename, jobId, ts: Date.now() });
+    localStorage.setItem("capscribe_sources", JSON.stringify(list.slice(0, 12)));
+  }
+  function toggleSourceMenu(){
+    const m = document.getElementById("sourceMenu");
+    if (!m) return;
+    if (m.classList.contains("open")) { m.classList.remove("open"); return; }
+    const list = ingestedSources();
+    const items = list.map(s =>
+      `<div class="src-item" onclick="switchSource('${(s.jobId||'').replace(/['"\\]/g,"")}','${esc(s.filename).replace(/['"\\]/g,"")}')">
+        <span>${esc(s.filename)}</span></div>`).join("") || `<div class="src-item muted">No previous filings</div>`;
+    m.innerHTML = items + `<div class="src-item src-upload" onclick="document.getElementById('ingest').scrollIntoView({behavior:'smooth'});toggleSourceMenu();">+ Upload new</div>`;
+    m.classList.add("open");
+  }
+  async function switchSource(jobId, filename){
+    toggleSourceMenu();
+    if (!jobId){ toast("Re-upload "+filename+" to switch — its job expired"); document.getElementById('ingest').scrollIntoView({behavior:'smooth'}); return; }
+    try {
+      await api("/ingest/" + jobId + "/index", {method:"POST"});
+      toast("Switched to " + filename);
+      await boot();
+    } catch(e){
+      toast("Couldn't switch — re-upload " + filename);
+      document.getElementById('ingest').scrollIntoView({behavior:'smooth'});
+    }
+  }
+  document.addEventListener("click", e => {
+    const m = document.getElementById("sourceMenu");
+    if (m && m.classList.contains("open") && !e.target.closest(".status")) m.classList.remove("open");
   });
 
   boot();

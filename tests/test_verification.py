@@ -54,6 +54,21 @@ def test_conflicting_same_date_flagged():
     assert set(issue.event_ids) == {"x", "y"}
 
 
+def test_same_date_same_price_is_multitranche_warning():
+    # two allotments, same date, same issue price, different allottees/shares
+    # -> a multi-tranche funding round, downgraded from error to warning.
+    multi = [
+        {"event_type": "allotment", "date": "2023-09-22", "shares": 6358765,
+         "issue_price": 129.9, "event_id": "m1"},
+        {"event_type": "allotment", "date": "2023-09-22", "shares": 6485940,
+         "issue_price": 129.9, "event_id": "m2"},
+    ]
+    res = verify_consistency(multi)
+    issue = next(i for i in res.issues if i.check_type == "timeline")
+    assert issue.severity == "warning"
+    assert "multi-tranche" in issue.description.lower()
+
+
 def test_bonus_arithmetic_deviation_flagged():
     bad = [{"event_type": "bonus_issue", "date": "2021-01-01", "ratio": "5:1",
             "pre_issue_capital": 100000000, "post_issue_capital": 900000000}]

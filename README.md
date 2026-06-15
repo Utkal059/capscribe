@@ -65,14 +65,14 @@ Structured investor intelligence synthesised from raw DRHP events via Claude.
 | Metric | Score |
 |---|---|
 | Precision | 1.000 |
-| Recall | 0.900 |
-| F1 | 0.947 |
+| Recall | 0.857 |
+| F1 | 0.923 |
 
 ```bash
 python evaluate.py fixtures/ola_drhp_extracted.json fixtures/ola_drhp_gold.json
 ```
 
-Zero false positives — acquisition/transfer tables are correctly *not* typed as allotments. The single miss is a genuine allotment whose share count appears only in prose (no numeric column); the optional `POST /ingest?llm=true` pass recovers that class of event.
+Zero false positives — acquisition/transfer tables are correctly *not* typed as allotments (a mixed "date of allotment/transfer" table is filtered by its `nature of transaction` column). The single miss is a genuine allotment whose share count appears only in prose (no numeric column); the optional `POST /ingest?llm=true` pass recovers that class of event.
 
 **Synthetic fixture** (full event-type coverage, known answers): Precision **1.000** · Recall **0.938** · F1 **0.968** via `python evaluate.py fixtures/sample_events.json fixtures/gold_events.json`.
 
@@ -93,7 +93,7 @@ The index builds on startup from `fixtures/sample_events.json` using local embed
 
 ```bash
 pip install -r requirements.txt -r requirements-api.txt -r requirements-dev.txt
-pytest -q   # 75 passed
+pytest -q   # 76 passed
 ```
 
 ## Eval & Benchmarks

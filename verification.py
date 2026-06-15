@@ -84,9 +84,29 @@ def check_timeline(events: list[dict]) -> list[Issue]:
             continue
         figures = {(ev.get("shares"), ev.get("ratio"), ev.get("new_capital"))
                    for _, ev in group}
-        if len(figures) > 1:
+        if len(figures) <= 1:
+            continue
+        # Same-date allotments at the *same issue price* are almost always one
+        # funding round split across allottees (multi-tranche), not a data
+        # conflict — downgrade to a warning so analysts aren't told their
+        # extraction is broken when it isn't.
+        prices = {ev.get("issue_price") for _, ev in group}
+        ids = [_eid(ev, i) for i, ev in group]
+        if etype == "allotment" and len(prices) == 1 and None not in prices:
+            price = next(iter(prices))
             issues.append(Issue(
-                event_ids=[_eid(ev, i) for i, ev in group],
+                event_ids=ids,
+                check_type="timeline",
+                description=(
+                    f"Multi-tranche allotment on {date}: {len(group)} events at the "
+                    f"same price (Rs. {price:g}) — likely a single funding round split "
+                    f"across allottees."
+                ),
+                severity="warning",
+            ))
+        else:
+            issues.append(Issue(
+                event_ids=ids,
                 check_type="timeline",
                 description=(
                     f"{len(group)} {etype} events on {date} with conflicting "
