@@ -548,8 +548,8 @@
     <div class="report-controls rv d2">
       <input type="text" id="reportTitle" placeholder="Report title (optional)" value="CapScribe Demo" style="max-width:320px;" />
       <div class="report-mode-toggle" role="group" aria-label="Report mode">
-        <button class="active" id="rModeBrief" onclick="setReportMode('brief')">Brief</button>
-        <button id="rModeFull" onclick="setReportMode('full')">Full</button>
+        <button class="active" id="rModeBrief" onclick="setReportMode('extractive')">Extractive</button>
+        <button id="rModeFull" onclick="setReportMode('llm')">LLM</button>
       </div>
       <button onclick="runReport()" id="reportBtn">Generate Report</button>
     </div>
@@ -565,7 +565,7 @@
 <script>
   const API = (location.origin.startsWith("http") && location.port !== "5500") ? "" : "http://localhost:8000";
   let mode = "extractive";
-  let reportMode = "brief";
+  let reportMode = "extractive";
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   async function api(path, opts) {
@@ -908,8 +908,8 @@
   /* ---- REPORT ---- */
   function setReportMode(m){
     reportMode = m;
-    document.getElementById("rModeBrief").classList.toggle("active", m === "brief");
-    document.getElementById("rModeFull").classList.toggle("active", m === "full");
+    document.getElementById("rModeBrief").classList.toggle("active", m === "extractive");
+    document.getElementById("rModeFull").classList.toggle("active", m === "llm");
   }
 
   async function runReport(){
@@ -919,7 +919,7 @@
     btn.disabled = true; btn.textContent = "Generating…";
     panel.classList.remove("show");
     try {
-      const r = await api("/report", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({mode: reportMode, title})});
+      const r = await api("/report", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({mode: reportMode === "full" ? "llm" : "extractive", title})});
       panel.innerHTML = `<pre>${esc(JSON.stringify(r, null, 2))}</pre>`;
       panel.classList.add("show");
     } catch(e){

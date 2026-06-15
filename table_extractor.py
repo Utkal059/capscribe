@@ -31,7 +31,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 logger = logging.getLogger("capscribe.tables")
 
 # pdfplumber's merged-cell join keeps split header/value cells together.
-TABLE_SETTINGS = {"join_nonspanning_cells_in_direction": "h"}
+TABLE_SETTINGS = {"vertical_strategy": "lines", "horizontal_strategy": "lines", "snap_tolerance": 4, "join_tolerance": 4}
 
 
 @dataclass
