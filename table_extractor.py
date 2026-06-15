@@ -41,6 +41,16 @@ TEXT_SETTINGS = {"vertical_strategy": "text", "horizontal_strategy": "text", "sn
 TABLE_SETTINGS = LINES_SETTINGS  # back-compat: TableExtractor default + tests
 CAPITAL_SIGNALS = ("date of allotment", "equity share capital", "bonus", "rights issue",
                    "authorised capital", "authorized capital", "allotment", "face value")
+# Only retry the (noisier) text strategy when a page strongly looks like a
+# capital-structure *table*, not merely a page that mentions shares in prose.
+# Broad single-word signals made the text pass shatter prose into fake tables
+# (e.g. an IPO-performance page) and emit garbage events; these tight phrases
+# fire only on real build-up / allotment-history tables.
+FALLBACK_SIGNALS = ("date of allotment", "build-up of", "build up of",
+                    "history of equity share capital",
+                    "history of the equity share capital",
+                    "history of share capital", "history of the share capital",
+                    "increased from")
 
 
 @dataclass
@@ -168,8 +178,11 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
     consid_i = _find_col(headers, "consideration", "nature of", "nature")
     ratio_i = _find_col(headers, "ratio")
     record_i = _find_col(headers, "record date")
-    from_i = _find_col(headers, "increased from", "from")
-    to_i = _find_col(headers, "increased to", "to")
+    # Require the explicit "increased from/to" phrasing. Bare "from"/"to" as
+    # substrings matched prose fragments ("...preceding year from") and turned
+    # non-tables into bogus authorised-capital events.
+    from_i = _find_col(headers, "increased from")
+    to_i = _find_col(headers, "increased to")
     reso_i = _find_col(headers, "type of", "resolution type", "nature of resolution")
 
     def cell(row: dict, i: Optional[int]) -> Optional[str]:
@@ -183,14 +196,18 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
 
         # authorised capital change — needs an explicit from→to pair.
         if from_i is not None and to_i is not None:
-            ev = {
-                "event_type": "authorised_capital_change",
-                "date": parse_date(cell(row, date_i) or cell(row, reso_i)),
-                "old_capital": parse_int(cell(row, from_i)),
-                "new_capital": parse_int(cell(row, to_i)),
-                "resolution_type": _norm(cell(row, reso_i)) or None,
-            }
-            if ev["new_capital"] is not None:
+            old_cap = parse_int(cell(row, from_i))
+            new_cap = parse_int(cell(row, to_i))
+            # Authorised capital is always large (lakhs/crores). A tiny value
+            # means we matched stray digits in prose, not a real capital table.
+            if old_cap is not None and new_cap is not None and new_cap >= 100_000:
+                ev = {
+                    "event_type": "authorised_capital_change",
+                    "date": parse_date(cell(row, date_i) or cell(row, reso_i)),
+                    "old_capital": old_cap,
+                    "new_capital": new_cap,
+                    "resolution_type": _norm(cell(row, reso_i)) or None,
+                }
                 events.append({**ev, **_provenance(chunk, row_text)})
                 continue
 
@@ -294,12 +311,16 @@ class TableExtractor:
         chunks: list[TableChunk] = []
         with pdfplumber.open(str(pdf_path)) as pdf:
             for page in pdf.pages:
-                sections = self._infer_sections(page)
                 tables = page.find_tables(table_settings=self.table_settings)
                 if not tables:
                     text = (page.extract_text() or "").lower()
-                    if any(sig in text for sig in CAPITAL_SIGNALS):
+                    if any(sig in text for sig in FALLBACK_SIGNALS):
                         tables = page.find_tables(table_settings=TEXT_SETTINGS)
+                if not tables:
+                    continue
+                # Only infer section headings on pages that actually have a
+                # table — the char-level scan is wasted on the other ~half.
+                sections = self._infer_sections(page)
                 for tbl in tables:
                     data = tbl.extract()
                     if not data or len(data) < 2:

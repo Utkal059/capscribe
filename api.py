@@ -19,6 +19,7 @@ Only POST /ask with mode="llm" calls Claude.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import tempfile
 import uuid
@@ -184,33 +185,25 @@ def report(req: ReportRequest) -> dict:
     return generate_report(events, mode=req.mode, title=req.title).model_dump()
 
 
-@app.post("/ingest")
-async def ingest(file: UploadFile = File(...)) -> dict:
-    """Ingest a PDF: OCR-fallback text extraction → table extraction → summary.
+def _process_ingest(job_id: str, tmp_path: str, filename: str) -> None:
+    """Run the heavy PDF work (OCR scan + table extraction) for one job.
 
-    Runs synchronously and records the result under a job id so the result
-    can also be re-fetched from ``GET /ingest/status/{job_id}``. LLM
-    extraction is intentionally not invoked here (no API spend); table +
-    OCR provenance is returned directly.
+    Synchronous and CPU-bound, so it runs in a worker thread (see ``/ingest``)
+    rather than on the event loop. Results — including the extracted ``events``
+    array the UI renders — are written back into ``JOBS[job_id]``.
     """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(400, "a .pdf file is required")
-
-    job_id = uuid.uuid4().hex[:12]
-    JOBS[job_id] = {"job_id": job_id, "filename": file.filename, "status": "processing"}
-    tmp_path = Path(tempfile.gettempdir()) / f"capscribe_{job_id}.pdf"
+    path = Path(tmp_path)
     try:
-        tmp_path.write_bytes(await file.read())
-        doc = process_document(tmp_path)
-        table_events = TableExtractor().extract_events(tmp_path)
+        doc = process_document(path)
+        table_events = TableExtractor().extract_events(path)
         merged = merge_with_dedup(table_events, [])
         method_counts: dict[str, int] = {}
         for ev in merged:
             m = (ev.get("source_provenance") or {}).get("extraction_method", "table")
             method_counts[m] = method_counts.get(m, 0) + 1
-        result = {
+        JOBS[job_id] = {
             "job_id": job_id,
-            "filename": file.filename,
+            "filename": filename,
             "status": "done",
             "total_pages": doc["total_pages"],
             "ocr_page_count": doc["ocr_page_count"],
@@ -218,16 +211,42 @@ async def ingest(file: UploadFile = File(...)) -> dict:
             "page_methods": doc["pages"],
             "events_extracted": len(merged),
             "events_by_method": method_counts,
+            "events": merged,  # the actual events — the UI reads data.events
             "ocr_available": ocr_available(),
         }
-        JOBS[job_id] = result
-        return result
-    except Exception as exc:  # surface failures as a job status, not a 500
-        JOBS[job_id] = {"job_id": job_id, "filename": file.filename,
+        logger.info("ingest job %s done: %d events from %s", job_id, len(merged), filename)
+    except Exception as exc:  # record the failure on the job, never crash the worker
+        logger.exception("ingest job %s failed", job_id)
+        JOBS[job_id] = {"job_id": job_id, "filename": filename,
                         "status": "error", "error": str(exc)}
-        raise HTTPException(500, f"ingestion failed: {exc}")
     finally:
-        tmp_path.unlink(missing_ok=True)
+        path.unlink(missing_ok=True)
+
+
+@app.post("/ingest")
+async def ingest(file: UploadFile = File(...)) -> dict:
+    """Accept a PDF, start extraction in the background, return a job id.
+
+    A large filing takes a couple of minutes to parse, so the work runs in a
+    worker thread and the client polls ``GET /ingest/status/{job_id}`` for the
+    result. Returning immediately keeps the event loop (and every other
+    request) responsive and avoids upstream gateway timeouts. LLM extraction
+    is intentionally not invoked here (no API spend).
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(400, "a .pdf file is required")
+
+    job_id = uuid.uuid4().hex[:12]
+    tmp_path = Path(tempfile.gettempdir()) / f"capscribe_{job_id}.pdf"
+    tmp_path.write_bytes(await file.read())
+    JOBS[job_id] = {"job_id": job_id, "filename": file.filename, "status": "processing"}
+
+    # Fire-and-forget on the default thread-pool executor; the worker updates
+    # JOBS when finished. We don't await it, so the response returns at once.
+    asyncio.get_running_loop().run_in_executor(
+        None, _process_ingest, job_id, str(tmp_path), file.filename
+    )
+    return {"job_id": job_id, "filename": file.filename, "status": "processing"}
 
 
 @app.get("/ingest/status/{job_id}")

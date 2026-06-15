@@ -844,10 +844,10 @@
       setIngestStatus("⏳", "Processing…", `job_id: ${jid}`, true);
 
       let done = false, attempts = 0;
-      while (!done && attempts < 60){
+      while (!done && attempts < 180){
         await new Promise(r => setTimeout(r, 2000));
         attempts++;
-        bar.style.width = Math.min(35 + attempts * 2, 90) + "%";
+        bar.style.width = Math.min(35 + attempts, 90) + "%";
         const r2 = await fetch(API + "/ingest/status/" + jid);
         const data = await r2.json();
         if (data.status === "done" || data.status === "completed"){
