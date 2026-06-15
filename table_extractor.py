@@ -14,6 +14,9 @@ Design notes:
     the detection/parsing logic is fully unit-testable with no PDF.
   - Table-extracted events are higher structural fidelity than LLM-extracted
     ones, so ``merge_with_dedup`` prefers the table version on a fuzzy match.
+  - Real DRHP tables are inconsistently ruled. We try the ruled-line strategy
+    first and, on capital-relevant pages where it finds nothing, fall back to
+    the text strategy so borderless / whitespace-aligned tables still parse.
 """
 from __future__ import annotations
 
@@ -30,8 +33,14 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 logger = logging.getLogger("capscribe.tables")
 
-# pdfplumber's merged-cell join keeps split header/value cells together.
-TABLE_SETTINGS = {"vertical_strategy": "lines", "horizontal_strategy": "lines", "snap_tolerance": 4, "join_tolerance": 4}
+# Ruled tables (clean grids) and borderless tables (whitespace-aligned) need
+# different pdfplumber strategies. Try lines first, then fall back to text on
+# pages that look capital-relevant (keeps the noisier text pass targeted).
+LINES_SETTINGS = {"vertical_strategy": "lines", "horizontal_strategy": "lines", "snap_tolerance": 4, "join_tolerance": 4}
+TEXT_SETTINGS = {"vertical_strategy": "text", "horizontal_strategy": "text", "snap_tolerance": 4, "join_tolerance": 4}
+TABLE_SETTINGS = LINES_SETTINGS  # back-compat: TableExtractor default + tests
+CAPITAL_SIGNALS = ("date of allotment", "equity share capital", "bonus", "rights issue",
+                   "authorised capital", "authorized capital", "allotment", "face value")
 
 
 @dataclass
@@ -122,6 +131,7 @@ def _provenance(chunk: TableChunk, row_text: str) -> dict:
     bbox = list(chunk.bbox) if chunk.bbox else None
     return {
         "page_number": chunk.page_num,
+        "page": chunk.page_num,  # alias for UIs that read `page`
         "source_snippet": row_text[:200] if row_text else chunk.raw_text[:200],
         "bbox": bbox,
         "confidence": 0.95,  # structural extraction, but headings can mislead
@@ -155,7 +165,7 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
                          "no. of equity", "number of equity", "shares allotted", "shares")
     face_i = _find_col(headers, "face value")
     price_i = _find_col(headers, "issue price", "price per")
-    consid_i = _find_col(headers, "consideration", "nature of")
+    consid_i = _find_col(headers, "consideration", "nature of", "nature")
     ratio_i = _find_col(headers, "ratio")
     record_i = _find_col(headers, "record date")
     from_i = _find_col(headers, "increased from", "from")
@@ -191,7 +201,7 @@ def table_to_events(chunk: TableChunk) -> list[dict]:
                 ev = {
                     "event_type": "bonus_issue",
                     "date": parse_date(cell(row, record_i) or cell(row, date_i)),
-                    "ratio": re.sub(r"\s*", "", str(ratio_raw)),
+                    "ratio": re.sub(r"\s+", "", str(ratio_raw)),
                     "shares_issued": parse_int(cell(row, shares_i)),
                 }
                 events.append({**ev, **_provenance(chunk, row_text)})
@@ -273,14 +283,24 @@ class TableExtractor:
         return above[-1] if above else ""
 
     def extract(self, pdf_path: str | Path) -> list[TableChunk]:
-        """Return every table on every page as a :class:`TableChunk`."""
+        """Return every table on every page as a :class:`TableChunk`.
+
+        Tries the ruled-line strategy first; on pages that find no ruled table
+        but contain capital-event signals, retries with the text strategy so
+        borderless / whitespace-aligned DRHP tables are still captured.
+        """
         import pdfplumber
 
         chunks: list[TableChunk] = []
         with pdfplumber.open(str(pdf_path)) as pdf:
             for page in pdf.pages:
                 sections = self._infer_sections(page)
-                for tbl in page.find_tables(table_settings=self.table_settings):
+                tables = page.find_tables(table_settings=self.table_settings)
+                if not tables:
+                    text = (page.extract_text() or "").lower()
+                    if any(sig in text for sig in CAPITAL_SIGNALS):
+                        tables = page.find_tables(table_settings=TEXT_SETTINGS)
+                for tbl in tables:
                     data = tbl.extract()
                     if not data or len(data) < 2:
                         continue

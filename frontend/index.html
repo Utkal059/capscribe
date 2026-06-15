@@ -919,7 +919,7 @@
     btn.disabled = true; btn.textContent = "Generating…";
     panel.classList.remove("show");
     try {
-      const r = await api("/report", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({mode: reportMode === "full" ? "llm" : "extractive", title})});
+      const r = await api("/report", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({mode: reportMode , title})});
       panel.innerHTML = `<pre>${esc(JSON.stringify(r, null, 2))}</pre>`;
       panel.classList.add("show");
     } catch(e){
