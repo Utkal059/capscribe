@@ -27,9 +27,12 @@ class Settings(BaseSettings):
 
     # --- Data ---
     # The extracted JSON the API loads on startup. Point this at any file
-    # produced by extractor.py. Defaults to the bundled fixture so the whole
-    # demo runs with zero API spend.
-    events_path: str = "fixtures/sample_events.json"
+    # produced by extractor.py / table extraction. Defaults to the real Ola
+    # Electric DRHP extraction so a cold open shows genuine, page-cited
+    # events (not a synthetic sample); the whole demo still runs with zero
+    # API spend. Override with EVENTS_PATH in .env (e.g. the broader
+    # fixtures/sample_events.json for full event-type coverage).
+    events_path: str = "fixtures/ola_drhp_extracted.json"
 
 
 settings = Settings()

@@ -87,7 +87,7 @@ uvicorn api:app --reload
 # open http://localhost:8000
 ```
 
-The index builds on startup from `fixtures/sample_events.json` using local embeddings, so search / ask / verify / report all run with **zero API spend**. Only `mode="llm"` calls Claude.
+The index builds on startup from `fixtures/ola_drhp_extracted.json` — the **real Ola Electric DRHP** extraction — using local embeddings, so search / ask / verify / report all run on a genuine, page-cited filing with **zero API spend**. Override the seed with `EVENTS_PATH` in `.env` (e.g. `fixtures/sample_events.json` for full event-type coverage). Only `mode="llm"` calls Claude.
 
 ## Tests
 
