@@ -76,6 +76,36 @@ Zero false positives — acquisition/transfer tables are correctly *not* typed a
 
 **Synthetic fixture** (full event-type coverage, known answers): Precision **1.000** · Recall **0.938** · F1 **0.968** via `python evaluate.py fixtures/sample_events.json fixtures/gold_events.json`.
 
+### Multi-filing corpus
+
+One filing isn't enough evidence. `eval_corpus.py` scores extraction across a
+corpus of real DRHPs and prints per-filing **and** aggregate P/R/F1, so a
+regression on one filing surfaces even if another still scores 1.0:
+
+```bash
+python eval_corpus.py
+```
+
+It always scores the committed Ola baseline, and consumes any DRHP PDFs dropped
+into `fixtures/real_drhps/`. To add a filing + gold set, see
+[`fixtures/real_drhps/README.md`](fixtures/real_drhps/README.md): drop the PDF,
+run the harness to generate predictions, hand-verify against the filing, save a
+`<name>.gold.json`, and re-run. Filings without a gold set are listed as
+"no gold set" rather than scored — numbers are never invented.
+
+### Robustness
+
+Header matching is punctuation/spacing-insensitive (`No.` vs `Number`,
+hyphenation), number parsing handles Indian grouping, `Rs.`/`INR`/`₹`, and
+shorthand magnitude words (`150 crore`), and date parsing covers many real
+formats plus footnote markers (`2023-12-19*`). The bonus/rights branches require
+a record/allotment-date column (so a "Debt-Equity Ratio 2:1" financial table is
+never mis-typed), and rights are split from bonus on an explicit section signal.
+The precision guards (strict allotment-date column, `nature of transaction`
+filter, `increased from/to` + magnitude floor) keep acquisition, transfer, and
+ratio tables out of the event stream. OCR usage on the most recent ingest is
+visible at `GET /health` (`ocr_last_ingest`) and in the server logs.
+
 Per-event-type and per-extraction-method breakdowns are emitted by `evaluate.py`; retrieval quality (nDCG@5, MRR — dense vs hybrid) by `benchmark_retrieval.py`.
 
 ## Quickstart

@@ -126,6 +126,9 @@ def health() -> dict:
         "indexed": state["store"].count(),
         "retrieval": "hybrid" if state.get("hybrid") else "vector",
         "ocr_available": ocr_available(),
+        # Whether OCR actually ran on any page of the most recent ingest
+        # (the JD names "scans" explicitly — this makes the fallback visible).
+        "ocr_last_ingest": state.get("ocr_last_ingest"),
     }
 
 
@@ -242,6 +245,15 @@ def _process_ingest(job_id: str, tmp_path: str, filename: str, use_llm: bool = F
     path = Path(tmp_path)
     try:
         doc = process_document(path)
+        # Surface the OCR fallback: log it and record it for /health so a
+        # reviewer can see scans were handled (or that none were needed).
+        ocr_pages = doc["ocr_page_count"]
+        logger.info("ingest %s: OCR ran on %d/%d page(s) (ocr_available=%s)",
+                    filename, ocr_pages, doc["total_pages"], ocr_available())
+        state["ocr_last_ingest"] = {
+            "file": filename, "ocr_pages": ocr_pages,
+            "total_pages": doc["total_pages"], "ran": ocr_pages > 0,
+        }
         table_events = TableExtractor().extract_events(path)
         llm_events = _llm_events(doc["text_by_page"]) if use_llm else []
         merged = merge_with_dedup(table_events, llm_events)

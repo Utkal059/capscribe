@@ -1,0 +1,21 @@
+# Render Blueprint — one web service serving both the API and the frontend
+# (FastAPI returns frontend/index.html at "/"), so a recruiter opens a single
+# URL. Deploy with: Render Dashboard → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: capscribe
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free            # free spins down when idle (~30-60s cold start);
+                          # use "starter" to keep it warm for a recruiter.
+    region: singapore     # closest to India / Indian filings
+    healthCheckPath: /health
+    autoDeploy: true      # redeploys on every push to the default branch
+    envVars:
+      # Cold-open on the real Ola DRHP extraction (page-cited), not the sample.
+      - key: EVENTS_PATH
+        value: fixtures/ola_drhp_extracted.json
+      # ANTHROPIC_API_KEY is intentionally NOT set here: the public demo runs
+      # the free, extractive search / ask / report / verify. Add it in the
+      # Render dashboard ONLY if you want the optional llm modes (real API cost,
+      # and a public link can be hit by anyone — leave it unset for a safe demo).
