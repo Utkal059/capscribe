@@ -308,6 +308,8 @@ async def ingest(file: UploadFile = File(...), llm: bool = False) -> dict:
     data = await file.read()
     size_mb = len(data) / 1_000_000
     if size_mb > MAX_INGEST_MB:
+        logger.warning("ingest guard: rejected %s (%.1f MB > %.0f MB limit)",
+                       file.filename, size_mb, MAX_INGEST_MB)
         raise HTTPException(413,
             f"This filing is {size_mb:.0f} MB — the live demo instance is memory-limited "
             f"to {MAX_INGEST_MB:.0f} MB. Try the capital-structure section, or explore the "
@@ -326,6 +328,8 @@ async def ingest(file: UploadFile = File(...), llm: bool = False) -> dict:
     except Exception:
         n_pages = 0
     if n_pages > MAX_INGEST_PAGES:
+        logger.warning("ingest guard: rejected %s (%d pages > %d limit)",
+                       file.filename, n_pages, MAX_INGEST_PAGES)
         tmp_path.unlink(missing_ok=True)
         raise HTTPException(413,
             f"This filing has {n_pages} pages — the live demo instance handles up to "

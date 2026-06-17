@@ -6,8 +6,10 @@ services:
     name: capscribe
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter         # always-on (no idle spin-down / cold start) so a
-                          # recruiter never waits on a sleeping instance.
+    plan: free            # free deploys with no billing setup (starter is a PAID
+                          # tier — a starter change here stalls the Blueprint sync
+                          # until billing is configured). To go always-on later:
+                          # add billing in the Render dashboard, then set "starter".
     region: singapore     # closest to India / Indian filings
     healthCheckPath: /health
     autoDeploy: true      # redeploys on every push to the default branch
