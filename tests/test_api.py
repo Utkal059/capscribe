@@ -101,6 +101,26 @@ def test_ingest_status_unknown_job(store):
     assert r.status_code == 404
 
 
+def test_ingest_rejects_oversized_file(store):
+    # over MAX_INGEST_MB (6 MB) -> rejected up front, never reaches extraction
+    big = b"%PDF-1.4\n" + b"0" * (7 * 1000 * 1000)
+    r = _client(store).post("/ingest", files={"file": ("big.pdf", big, "application/pdf")})
+    assert r.status_code == 413
+    assert "MB" in r.json()["detail"]
+
+
+def test_ingest_rejects_too_many_pages(store):
+    import io
+    from pypdf import PdfWriter
+    w = PdfWriter()
+    for _ in range(api.MAX_INGEST_PAGES + 1):
+        w.add_blank_page(width=72, height=72)
+    buf = io.BytesIO(); w.write(buf)
+    r = _client(store).post("/ingest", files={"file": ("many.pdf", buf.getvalue(), "application/pdf")})
+    assert r.status_code == 413
+    assert "pages" in r.json()["detail"]
+
+
 def test_ingest_index_unknown_job(store):
     r = _client(store).post("/ingest/does-not-exist/index")
     assert r.status_code == 404

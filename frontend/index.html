@@ -521,7 +521,7 @@
       <div class="drop-label">
         <strong>Drop a PDF here</strong> or click to browse
       </div>
-      <div class="drop-hint">Max file size: 50 MB</div>
+      <div class="drop-hint">Demo limit: up to 40 pages / 6 MB · the full Ola DRHP is pre-loaded below</div>
       <input type="file" id="pdfFile" accept=".pdf" aria-hidden="true" onchange="uploadPDF(this.files[0])">
     </div>
 
@@ -637,10 +637,27 @@
   let reportMode = "extractive";
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Robust JSON fetch. Free hosting (Render) returns an HTML 502/503 "waking
+  // up" page on a cold start; calling .json() on that throws the cryptic
+  // "Unexpected token '<'". Here we detect non-JSON / proxy responses and
+  // surface a clean, retryable error instead.
   async function api(path, opts) {
-    const r = await fetch(API + path, opts);
-    if (!r.ok) throw new Error((await r.json().catch(() => ({detail: r.statusText}))).detail || r.statusText);
-    return r.json();
+    let r;
+    try { r = await fetch(API + path, opts); }
+    catch(e){ throw new Error("Can't reach the server — check your connection and retry."); }
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (!ct.includes("json")) {
+      if (r.status === 502 || r.status === 503 || r.status === 504) {
+        const e = new Error("Server is waking up (free hosting cold start). Give it ~30s and retry.");
+        e.coldStart = true;
+        throw e;
+      }
+      throw new Error("Unexpected response from server (HTTP " + r.status + ").");
+    }
+    const data = await r.json().catch(() => null);
+    if (!r.ok) throw new Error((data && data.detail) || ("HTTP " + r.status));
+    if (data === null) throw new Error("Malformed response from server.");
+    return data;
   }
   function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -786,7 +803,7 @@
   });
 
   /* boot */
-  async function boot(){
+  async function boot(retry){
     try {
       const h = await api("/health");
       document.getElementById("source").textContent = h.source || "—";
@@ -801,8 +818,18 @@
       el.querySelectorAll(".n[data-n]").forEach(n => countUp(n, parseInt(n.dataset.n, 10)));
       loadExtracts();
     } catch(e){
+      // On a free-hosting cold start the first call can hit a 502 while the
+      // server wakes — retry a few times before giving up, so a recruiter
+      // opening a cold link still lands on the live index.
+      const tries = (retry || 0) + 1;
+      if (e.coldStart && tries <= 6){
+        document.getElementById("stats").innerHTML =
+          `<div class="empty">Waking the server… (${tries}/6)</div>`;
+        setTimeout(() => boot(tries), 5000);
+        return;
+      }
       document.getElementById("stats").innerHTML =
-        `<div class="empty">Backend not reachable. Start it with <code>uvicorn api:app --reload</code>.</div>`;
+        `<div class="empty">Backend not reachable. If self-hosting, start it with <code>uvicorn api:app --reload</code>.</div>`;
     }
   }
 
@@ -907,9 +934,19 @@
 
     try {
       const useLlm = document.getElementById("ingestLlm")?.checked ? "?llm=true" : "";
-      const r1 = await fetch(API + "/ingest" + useLlm, {method:"POST", body: fd});
-      if (!r1.ok) throw new Error((await r1.json()).detail || r1.statusText);
-      const job = await r1.json();
+      // A FormData body can't be reused across retries, so rebuild it each time.
+      const makeFd = () => { const f = new FormData(); f.append("file", file); return f; };
+      // Cold-start tolerant: a spun-down free instance returns an HTML 502 on
+      // the first hit, so retry the upload a few times while it wakes.
+      let job, tries = 0;
+      while (true) {
+        try { job = await api("/ingest" + useLlm, {method:"POST", body: makeFd()}); break; }
+        catch(e){
+          if (!e.coldStart || ++tries >= 4) throw e;
+          setIngestStatus("⏳", `Server waking up… retry ${tries}/3`, "", true);
+          await new Promise(r => setTimeout(r, 5000));
+        }
+      }
       const jid = job.job_id;
       bar.style.width = "35%";
       setIngestStatus("⏳", "Processing…", `job_id: ${jid}`, true);
@@ -919,8 +956,9 @@
         await new Promise(r => setTimeout(r, 2000));
         attempts++;
         bar.style.width = Math.min(35 + attempts, 90) + "%";
-        const r2 = await fetch(API + "/ingest/status/" + jid);
-        const data = await r2.json();
+        let data;
+        try { data = await api("/ingest/status/" + jid); }
+        catch(e){ continue; }  // tolerate a transient blip; keep polling
         if (data.status === "done" || data.status === "completed"){
           done = true;
           bar.style.width = "100%";
@@ -932,13 +970,13 @@
         } else if (data.status === "error" || data.status === "failed"){
           done = true;
           bar.style.width = "0%";
-          setIngestStatus("❌", `Error: ${data.error || "Processing failed"}`, `job_id: ${jid}`, true);
+          setIngestStatus("❌", `Extraction failed: ${data.error || "unknown error"}`, `job_id: ${jid}`, true);
         }
       }
-      if (!done) setIngestStatus("⚠️", "Timed out waiting for result. Check job_id in /docs.", `job_id: ${jid}`, true);
+      if (!done) setIngestStatus("⚠️", "Timed out waiting for the result — the server may have been waking up. Try again.", `job_id: ${jid}`, true);
     } catch(e){
       bar.style.width = "0%";
-      setIngestStatus("❌", `Error: ${e.message}`, "", true);
+      setIngestStatus("❌", e.message, "", true);
     }
   }
 

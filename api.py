@@ -68,6 +68,13 @@ state: dict = {"store": None, "agent": None, "source": None}
 # In-memory ingest job registry (no external queue needed for the demo).
 JOBS: dict[str, dict] = {}
 
+# Demo guard rails: a large filing (100+ pages) OOM-crashes a small 512 MB
+# instance mid-extraction. We reject oversized uploads up front (the page count
+# is read cheaply with pypdf, before the heavy extraction) so the user gets a
+# clean message instead of a 502. Raise these via env on a bigger plan.
+MAX_INGEST_PAGES = int(os.getenv("MAX_INGEST_PAGES", "40"))
+MAX_INGEST_MB = float(os.getenv("MAX_INGEST_MB", "6"))
+
 
 class SearchRequest(BaseModel):
     query: str
@@ -298,9 +305,33 @@ async def ingest(file: UploadFile = File(...), llm: bool = False) -> dict:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "a .pdf file is required")
 
+    data = await file.read()
+    size_mb = len(data) / 1_000_000
+    if size_mb > MAX_INGEST_MB:
+        raise HTTPException(413,
+            f"This filing is {size_mb:.0f} MB — the live demo instance is memory-limited "
+            f"to {MAX_INGEST_MB:.0f} MB. Try the capital-structure section, or explore the "
+            f"pre-loaded Ola DRHP via Search / Ask / Report.")
+
     job_id = uuid.uuid4().hex[:12]
     tmp_path = Path(tempfile.gettempdir()) / f"capscribe_{job_id}.pdf"
-    tmp_path.write_bytes(await file.read())
+    tmp_path.write_bytes(data)
+
+    # Page-count guard: counting pages with pypdf is cheap and low-memory, so we
+    # can reject a too-large filing here, before the heavy extraction that would
+    # OOM-crash the instance.
+    try:
+        from pypdf import PdfReader
+        n_pages = len(PdfReader(str(tmp_path)).pages)
+    except Exception:
+        n_pages = 0
+    if n_pages > MAX_INGEST_PAGES:
+        tmp_path.unlink(missing_ok=True)
+        raise HTTPException(413,
+            f"This filing has {n_pages} pages — the live demo instance handles up to "
+            f"{MAX_INGEST_PAGES}. Upload just the capital-structure section, or explore the "
+            f"pre-loaded Ola DRHP (Search / Ask / Verify / Report all work on it).")
+
     JOBS[job_id] = {"job_id": job_id, "filename": file.filename, "status": "processing"}
 
     # Fire-and-forget on the default thread-pool executor; the worker updates

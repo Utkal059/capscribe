@@ -6,8 +6,8 @@ services:
     name: capscribe
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free            # free spins down when idle (~30-60s cold start);
-                          # use "starter" to keep it warm for a recruiter.
+    plan: starter         # always-on (no idle spin-down / cold start) so a
+                          # recruiter never waits on a sleeping instance.
     region: singapore     # closest to India / Indian filings
     healthCheckPath: /health
     autoDeploy: true      # redeploys on every push to the default branch
