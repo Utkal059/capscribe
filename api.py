@@ -37,6 +37,7 @@ from pathlib import Path
 
 from agent import CapScribeAgent
 from config import settings
+from markdown_extractor import extract_events_from_markdown, is_markdown, markdown_summary
 from ocr import ocr_available, process_document
 from report import generate_report
 from retrieval import EventStore, HybridRetriever, load_events
@@ -251,17 +252,27 @@ def _process_ingest(job_id: str, tmp_path: str, filename: str, use_llm: bool = F
     """
     path = Path(tmp_path)
     try:
-        doc = process_document(path)
-        # Surface the OCR fallback: log it and record it for /health so a
-        # reviewer can see scans were handled (or that none were needed).
-        ocr_pages = doc["ocr_page_count"]
-        logger.info("ingest %s: OCR ran on %d/%d page(s) (ocr_available=%s)",
-                    filename, ocr_pages, doc["total_pages"], ocr_available())
+        if is_markdown(filename):
+            # Markdown filings have no pages to render and no scans to read, so
+            # bypass pdfplumber/OCR entirely and parse the Markdown tables.
+            md_text = path.read_text(encoding="utf-8", errors="replace")
+            doc = markdown_summary(md_text)
+            ocr_pages = 0
+            logger.info("ingest %s: markdown filing, %d page-block(s) — no OCR/pdfplumber",
+                        filename, doc["total_pages"])
+            table_events = extract_events_from_markdown(md_text)
+        else:
+            doc = process_document(path)
+            # Surface the OCR fallback: log it and record it for /health so a
+            # reviewer can see scans were handled (or that none were needed).
+            ocr_pages = doc["ocr_page_count"]
+            logger.info("ingest %s: OCR ran on %d/%d page(s) (ocr_available=%s)",
+                        filename, ocr_pages, doc["total_pages"], ocr_available())
+            table_events = TableExtractor().extract_events(path)
         state["ocr_last_ingest"] = {
             "file": filename, "ocr_pages": ocr_pages,
             "total_pages": doc["total_pages"], "ran": ocr_pages > 0,
         }
-        table_events = TableExtractor().extract_events(path)
         llm_events = _llm_events(doc["text_by_page"]) if use_llm else []
         merged = merge_with_dedup(table_events, llm_events)
         method_counts: dict[str, int] = {}
@@ -300,10 +311,12 @@ async def ingest(file: UploadFile = File(...), llm: bool = False) -> dict:
     request) responsive and avoids upstream gateway timeouts.
 
     ``?llm=true`` additionally runs a bounded Claude extraction pass (uses API
-    credits); the default is the free, deterministic table path only.
+    credits); the default is the free, deterministic table path only. Accepts
+    either a ``.pdf`` or a Markdown filing (``.md`` / ``text/markdown``).
     """
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(400, "a .pdf file is required")
+    md = is_markdown(file.filename, file.content_type)
+    if not file.filename or not (md or file.filename.lower().endswith(".pdf")):
+        raise HTTPException(400, "Only PDF and Markdown (.md) files are supported")
 
     data = await file.read()
     size_mb = len(data) / 1_000_000
@@ -316,25 +329,28 @@ async def ingest(file: UploadFile = File(...), llm: bool = False) -> dict:
             f"pre-loaded Ola DRHP via Search / Ask / Report.")
 
     job_id = uuid.uuid4().hex[:12]
-    tmp_path = Path(tempfile.gettempdir()) / f"capscribe_{job_id}.pdf"
+    suffix = ".md" if md else ".pdf"
+    tmp_path = Path(tempfile.gettempdir()) / f"capscribe_{job_id}{suffix}"
     tmp_path.write_bytes(data)
 
-    # Page-count guard: counting pages with pypdf is cheap and low-memory, so we
-    # can reject a too-large filing here, before the heavy extraction that would
-    # OOM-crash the instance.
-    try:
-        from pypdf import PdfReader
-        n_pages = len(PdfReader(str(tmp_path)).pages)
-    except Exception:
-        n_pages = 0
-    if n_pages > MAX_INGEST_PAGES:
-        logger.warning("ingest guard: rejected %s (%d pages > %d limit)",
-                       file.filename, n_pages, MAX_INGEST_PAGES)
-        tmp_path.unlink(missing_ok=True)
-        raise HTTPException(413,
-            f"This filing has {n_pages} pages — the live demo instance handles up to "
-            f"{MAX_INGEST_PAGES}. Upload just the capital-structure section, or explore the "
-            f"pre-loaded Ola DRHP (Search / Ask / Verify / Report all work on it).")
+    # Page-count guard (PDF only): counting pages with pypdf is cheap and
+    # low-memory, so we can reject a too-large filing here, before the heavy
+    # extraction that would OOM-crash the instance. Markdown carries no pages
+    # and is already capped by the size guard above, so it skips this check.
+    if not md:
+        try:
+            from pypdf import PdfReader
+            n_pages = len(PdfReader(str(tmp_path)).pages)
+        except Exception:
+            n_pages = 0
+        if n_pages > MAX_INGEST_PAGES:
+            logger.warning("ingest guard: rejected %s (%d pages > %d limit)",
+                           file.filename, n_pages, MAX_INGEST_PAGES)
+            tmp_path.unlink(missing_ok=True)
+            raise HTTPException(413,
+                f"This filing has {n_pages} pages — the live demo instance handles up to "
+                f"{MAX_INGEST_PAGES}. Upload just the capital-structure section, or explore the "
+                f"pre-loaded Ola DRHP (Search / Ask / Verify / Report all work on it).")
 
     JOBS[job_id] = {"job_id": job_id, "filename": file.filename, "status": "processing"}
 

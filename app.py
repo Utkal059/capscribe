@@ -61,22 +61,56 @@ with st.sidebar:
 
 # ── File upload ───────────────────────────────────────────────────────────────
 uploaded_file = st.file_uploader(
-    "Upload DRHP / IPO Prospectus PDF",
-    type=["pdf"],
-    help="DRHPs, RHPs, and AGM notices are supported.",
+    "Upload DRHP / IPO Prospectus (PDF or Markdown)",
+    type=["pdf", "md"],
+    help="DRHPs, RHPs, and AGM notices. PDF, or a pre-converted Markdown (.md) filing.",
 )
 
-if uploaded_file and not api_key:
+# Markdown filings use the free, deterministic table path — no Claude call — so
+# they don't need an API key. Only the PDF (LLM) path below requires one.
+is_md = bool(uploaded_file) and Path(uploaded_file.name).suffix.lower() in (".md", ".markdown")
+
+if uploaded_file and not api_key and not is_md:
     st.warning("⚠️ Please enter your Anthropic API key in the sidebar to proceed.")
 
-if uploaded_file and api_key:
+if uploaded_file and (api_key or is_md):
     col1, col2 = st.columns([2, 1])
     with col1:
         st.info(f"**File:** {uploaded_file.name}  |  **Size:** {uploaded_file.size / 1024:.1f} KB")
     with col2:
         run = st.button("🚀 Extract Capital Events", type="primary", use_container_width=True)
 
-    if run:
+    if run and is_md:
+        # ── Markdown path ─────────────────────────────────────────────────────
+        # Pre-converted Markdown filings skip pdfplumber/OCR entirely: read the
+        # raw text and parse its tables straight into events. Free, no Claude.
+        progress_bar = st.progress(0, text="Reading Markdown...")
+        status = st.empty()
+        try:
+            from markdown_extractor import extract_events_from_markdown
+
+            md_text = uploaded_file.read().decode("utf-8", errors="replace")
+            progress_bar.progress(40, text="Parsing tables...")
+            events = extract_events_from_markdown(md_text)
+            result = {
+                "source_file": uploaded_file.name,
+                "total_pages": None,
+                "total_events": len(events),
+                "estimated_cost_usd": 0.0,
+                "capital_events": events,
+            }
+            progress_bar.progress(100, text="Done!")
+            status.success(
+                f"✅ Extracted **{len(events)} capital events** from the Markdown filing.  "
+                "Cost: **$0.0000 USD** (deterministic table parse)."
+            )
+        except Exception as e:
+            progress_bar.empty()
+            st.error(f"❌ Markdown extraction failed: {e}")
+            st.stop()
+
+    elif run:
+        # ── PDF path ──────────────────────────────────────────────────────────
         # Set env vars for extractor
         os.environ["ANTHROPIC_API_KEY"] = api_key
         os.environ["CHUNK_SIZE"] = str(chunk_size)
@@ -118,10 +152,11 @@ if uploaded_file and api_key:
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
+    if run:
         events = result.get("capital_events", [])
 
         if not events:
-            st.warning("No capital events found in this document. Check the PDF is text-based (not scanned).")
+            st.warning("No capital events found in this document. Check the file is text-based (not a scanned image).")
         else:
             # ── Summary metrics ───────────────────────────────────────────────
             st.subheader("📊 Summary")

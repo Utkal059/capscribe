@@ -423,7 +423,7 @@
 
   <section id="pipeline">
     <h2 class="rv"><span class="idx">03</span> Pipeline</h2>
-    <p class="lede rv d1">From raw PDF to <em>machine-readable</em> capital history.</p>
+    <p class="lede rv d1">From raw PDF or Markdown to <em>machine-readable</em> capital history.</p>
     <div class="pipe">
       <div class="step tilt rv d1">
         <div class="t">Extraction</div>
@@ -506,7 +506,7 @@
     <h2 class="rv"><span class="idx">06</span> Ingest</h2>
     <p class="lede rv d1">Upload a filing. <em>Extract events in seconds.</em></p>
     <p style="color:var(--muted);font-size:12px;margin:-16px 0 24px;" class="rv d2">
-      Supports DRHP, IPO prospectus, annual reports · PDF only · OCR runs automatically on scanned documents
+      Supports DRHP, IPO prospectus, annual reports · PDF or Markdown (.md) · OCR runs automatically on scanned documents
     </p>
 
     <div class="drop-zone rv d2" id="dropZone"
@@ -515,14 +515,14 @@
       ondrop="handleDrop(event)"
       role="button"
       tabindex="0"
-      aria-label="Drop a PDF here or click to browse"
+      aria-label="Drop a PDF or Markdown file here or click to browse"
       onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('pdfFile').click()">
       <span class="drop-icon" aria-hidden="true">📄</span>
       <div class="drop-label">
-        <strong>Drop a PDF here</strong> or click to browse
+        <strong>Drop a PDF or .md file here</strong> or click to browse
       </div>
       <div class="drop-hint">Demo limit: up to 40 pages / 6 MB · the full Ola DRHP is pre-loaded below</div>
-      <input type="file" id="pdfFile" accept=".pdf" aria-hidden="true" onchange="uploadPDF(this.files[0])">
+      <input type="file" id="pdfFile" accept=".pdf,.md,.markdown,application/pdf,text/markdown" aria-hidden="true" onchange="uploadPDF(this.files[0])">
     </div>
 
     <label class="rv d2" style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--muted);cursor:pointer;">
@@ -907,8 +907,10 @@
     e.preventDefault();
     document.getElementById("dropZone").classList.remove("drag-over");
     const file = e.dataTransfer.files[0];
-    if (file && file.type === "application/pdf") uploadPDF(file);
-    else setIngestStatus("⚠️", "Please drop a PDF file.", "", false);
+    const ok = file && (file.type === "application/pdf" || file.type === "text/markdown"
+      || /\.(pdf|md|markdown)$/i.test(file.name));
+    if (ok) uploadPDF(file);
+    else setIngestStatus("⚠️", "Please drop a PDF or Markdown (.md) file.", "", false);
   }
 
   function setIngestStatus(icon, text, job, show){

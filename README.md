@@ -34,6 +34,7 @@ Structured investor intelligence synthesised from raw DRHP events via Claude.
 
 - **Extraction** — PDF parser producing structured JSON events per `schema.py`
 - **Tables** — direct `pdfplumber` table extraction (`table_extractor.py`), merged-cell aware, preferred over LLM events on a fuzzy match
+- **Markdown** — filings already converted to Markdown (`markdown_extractor.py`) skip pdfplumber/OCR entirely; their pipe tables are parsed straight into the same events, reusing every table-extraction precision guard
 - **OCR** — scanned-page fallback (`ocr.py`) via tesseract, degrades gracefully when the binary is absent
 - **Retrieval** — hybrid BM25 + ChromaDB vectors fused with reciprocal rank fusion (`retrieval.py`); an auto-alpha heuristic leans toward BM25 for numeric queries
 - **Agent** — observable LangGraph state machine `retrieve → grade → synthesize → validate` (`agent.py`)
@@ -53,10 +54,12 @@ Structured investor intelligence synthesised from raw DRHP events via Claude.
 | `POST /ask` | agentic RAG `{question, mode}` (extractive / llm) |
 | `POST /verify` | full-corpus contradiction report |
 | `POST /report` | source-backed capital-history brief `{mode, title}` |
-| `POST /ingest` | PDF upload → OCR fallback → table extraction (background job; `?llm=true` adds a bounded Claude pass) |
+| `POST /ingest` | PDF or Markdown (`.md`) upload → OCR fallback (PDF) / direct table parse (Markdown) → table extraction (background job; `?llm=true` adds a bounded Claude pass) |
 | `GET /ingest/status/{job_id}` | poll a running ingest job for its result |
 | `POST /ingest/{job_id}/index` | promote an ingested filing to the live corpus (search / ask / verify / report) |
 | `POST /index` | rebuild the index from a different extracted JSON |
+
+> Markdown tables flow through the same precision guards as PDF-extracted tables (`table_to_events` reuse) — `.md` filings skip pdfplumber/OCR but share every detection and filtering rule.
 
 ## Evaluation
 

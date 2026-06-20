@@ -42,12 +42,17 @@ BASELINE = [
 ]
 
 
-def _extract_to_json(pdf: Path) -> Path:
-    """Extract events from a PDF and write <name>.predicted.json beside it."""
-    events = TableExtractor().extract_events(pdf)
-    out = pdf.with_suffix(".predicted.json")
+def _extract_to_json(doc: Path) -> Path:
+    """Extract events from a filing (PDF or Markdown) and write
+    <name>.predicted.json beside it."""
+    if doc.suffix.lower() in (".md", ".markdown"):
+        from markdown_extractor import extract_events_from_md_file
+        events = extract_events_from_md_file(doc)
+    else:
+        events = TableExtractor().extract_events(doc)
+    out = doc.with_suffix(".predicted.json")
     out.write_text(
-        json.dumps({"source_file": pdf.name, "capital_events": events},
+        json.dumps({"source_file": doc.name, "capital_events": events},
                    indent=2, default=str),
         encoding="utf-8",
     )
@@ -82,12 +87,15 @@ def main() -> int:
         if pred.exists():
             score(label, pred, gold)
 
-    # 2) any real DRHP PDFs the user has dropped in
-    pdfs = sorted(CORPUS.glob("*.pdf")) if CORPUS.exists() else []
-    for pdf in pdfs:
-        print(f"extracting {pdf.name} …")
-        pred = _extract_to_json(pdf)
-        score(pdf.stem, pred, pdf.with_suffix(".gold.json"))
+    # 2) any real DRHP filings the user has dropped in (PDF or Markdown)
+    docs = sorted(
+        p for ext in ("*.pdf", "*.md", "*.markdown")
+        for p in (CORPUS.glob(ext) if CORPUS.exists() else [])
+    )
+    for doc in docs:
+        print(f"extracting {doc.name} …")
+        pred = _extract_to_json(doc)
+        score(doc.stem, pred, doc.with_suffix(".gold.json"))
 
     # 3) report
     print(f"\n{'filing':40} {'pred':>5} {'gold':>5}  metrics")
@@ -103,8 +111,8 @@ def main() -> int:
               f"P={p:.3f} R={rec:.3f} F1={f1:.3f}")
     else:
         print("No gold sets present yet — add fixtures/real_drhps/<name>.gold.json to score.")
-    if not pdfs:
-        print(f"\n(Tip: drop real DRHP PDFs into {CORPUS} to evaluate beyond the baseline.)")
+    if not docs:
+        print(f"\n(Tip: drop real DRHP PDFs or .md files into {CORPUS} to evaluate beyond the baseline.)")
     return 0
 
 
