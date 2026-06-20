@@ -10,7 +10,10 @@
       "face_value": 10,
       "issue_price": 10,
       "consideration": "cash",
-      "allottee_category": "promoters"
+      "allottee_category": "promoters",
+      "page_number": 72,
+      "source_snippet": "Pursuant to a resolution dated February 3, 2017, our Company allotted 10,000 Equity Shares of face value Rs. 10 each at an issue price of Rs. 10 per share for cash to the Promoters.",
+      "confidence": 1.0
     },
     {
       "event_type": "allotment",
@@ -19,7 +22,10 @@
       "face_value": 10,
       "issue_price": 154.2,
       "consideration": "cash",
-      "allottee_category": "preferential_investors"
+      "allottee_category": "preferential_investors",
+      "page_number": 74,
+      "source_snippet": "On June 21, 2019, our Company allotted 2,50,000 Equity Shares of face value Rs. 10 each at a premium, at an issue price of Rs. 154.20 per Equity Share, to certain preferential investors for cash consideration.",
+      "confidence": 1.0
     },
     {
       "event_type": "bonus_issue",
@@ -27,21 +33,30 @@
       "ratio": "5:1",
       "shares_issued": 50000000,
       "pre_issue_capital": 100000000,
-      "post_issue_capital": 600000000
+      "post_issue_capital": 600000000,
+      "page_number": 75,
+      "source_snippet": "Pursuant to a resolution of the Board dated August 1, 2021, our Company issued 5,00,00,000 bonus Equity Shares in the ratio of 5:1, increasing the paid-up capital from Rs. 10,00,00,000 to Rs. 60,00,00,000.",
+      "confidence": 1.0
     },
     {
       "event_type": "rights_issue",
       "date": "2022-03-15",
       "ratio": "1:4",
       "price": 220.5,
-      "shares_offered": 1200000
+      "shares_offered": 1200000,
+      "page_number": 76,
+      "source_snippet": "Our Company undertook a rights issue of 12,00,000 Equity Shares in the ratio of 1:4 at a price of Rs. 220.50 per Equity Share, with the record date of March 15, 2022.",
+      "confidence": 1.0
     },
     {
       "event_type": "authorised_capital_change",
       "date": "2023-01-10",
       "old_capital": 600000000,
       "new_capital": 1500000000,
-      "resolution_type": "special_resolution"
+      "resolution_type": "special_resolution",
+      "page_number": 78,
+      "source_snippet": "By a special resolution dated January 10, 2023, the authorised share capital of our Company was increased from Rs. 60,00,00,000 to Rs. 1,50,00,00,000.",
+      "confidence": 1.0
     },
     {
       "event_type": "allotment",
@@ -50,7 +65,127 @@
       "face_value": 10,
       "issue_price": 76.0,
       "consideration": "cash",
-      "allottee_category": "esop"
+      "allottee_category": "esop",
+      "page_number": 81,
+      "source_snippet": "On September 30, 2023, our Company allotted 80,00,000 Equity Shares of face value Rs. 10 each at an issue price of Rs. 76.00 per Equity Share pursuant to exercises under the ESOP 2021 scheme.",
+      "confidence": 1.0
+    },
+    {
+      "event_type": "dividend_declaration",
+      "date": "2022-07-15",
+      "amount_per_share": 2.5,
+      "record_date": "2022-07-01",
+      "payment_date": "2022-07-30",
+      "total_outflow": 150000000,
+      "page_number": 92,
+      "source_snippet": "The Board declared a final dividend of Rs. 2.50 per Equity Share for FY2022, with a record date of July 1, 2022 and payment on July 30, 2022.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 92, "section": "Dividends", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "dividend_declaration",
+      "date": "2023-07-20",
+      "amount_per_share": 3.0,
+      "record_date": "2023-07-05",
+      "payment_date": "2023-08-02",
+      "total_outflow": 180000000,
+      "page_number": 95,
+      "source_snippet": "A final dividend of Rs. 3.00 per Equity Share was declared for FY2023, payable on August 2, 2023 to shareholders on record as of July 5, 2023.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 95, "section": "Dividends", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "dividend_declaration",
+      "date": "2024-07-18",
+      "amount_per_share": 3.5,
+      "record_date": "2024-07-03",
+      "payment_date": "2024-07-31",
+      "total_outflow": 210000000,
+      "page_number": 98,
+      "source_snippet": "The Board recommended a dividend of Rs. 3.50 per Equity Share for FY2024, with a record date of July 3, 2024.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 98, "section": "Dividends", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "share_repurchase",
+      "date": "2022-11-10",
+      "shares_bought_back": 1000000,
+      "price": 250.0,
+      "consideration": "cash",
+      "remaining_buyback_authority": 500000,
+      "page_number": 110,
+      "source_snippet": "Pursuant to the buyback approved on November 10, 2022, the Company repurchased 10,00,000 Equity Shares at Rs. 250 per share, leaving 5,00,000 shares of authority unused.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 110, "section": "Buyback of Shares", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "share_repurchase",
+      "date": "2023-11-12",
+      "shares_bought_back": 800000,
+      "price": 300.0,
+      "consideration": "cash",
+      "remaining_buyback_authority": 200000,
+      "page_number": 112,
+      "source_snippet": "On November 12, 2023, the Company bought back 8,00,000 Equity Shares at Rs. 300 per share under the tender-offer route.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 112, "section": "Buyback of Shares", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "share_repurchase",
+      "date": "2024-11-15",
+      "shares_bought_back": 600000,
+      "price": 350.0,
+      "consideration": "cash",
+      "remaining_buyback_authority": 0,
+      "page_number": 114,
+      "source_snippet": "The Company completed a buyback of 6,00,000 Equity Shares at Rs. 350 per share on November 15, 2024, exhausting the approved authority.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 114, "section": "Buyback of Shares", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "warrant_exercise",
+      "date": "2021-05-05",
+      "warrants_exercised": 200000,
+      "shares_issued": 200000,
+      "exercise_price": 120.0,
+      "consideration": "cash",
+      "page_number": 120,
+      "source_snippet": "On May 5, 2021, holders exercised 2,00,000 warrants at an exercise price of Rs. 120, and the Company allotted 2,00,000 Equity Shares accordingly.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 120, "section": "Convertible Warrants", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "warrant_exercise",
+      "date": "2022-05-06",
+      "warrants_exercised": 150000,
+      "shares_issued": 150000,
+      "exercise_price": 140.0,
+      "consideration": "cash",
+      "page_number": 122,
+      "source_snippet": "On May 6, 2022, 1,50,000 warrants were exercised at Rs. 140 each, resulting in the allotment of 1,50,000 Equity Shares.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 122, "section": "Convertible Warrants", "extraction_method": "llm", "confidence": 1.0}
+    },
+    {
+      "event_type": "warrant_exercise",
+      "date": "2023-05-07",
+      "warrants_exercised": 100000,
+      "shares_issued": 100000,
+      "exercise_price": 160.0,
+      "consideration": "cash",
+      "page_number": 124,
+      "source_snippet": "On May 7, 2023, 1,00,000 warrants were exercised at Rs. 160 each and 1,00,000 Equity Shares were issued.",
+      "confidence": 1.0,
+      "synthetic": true,
+      "source_provenance": {"page": 124, "section": "Convertible Warrants", "extraction_method": "llm", "confidence": 1.0}
     }
   ]
 }

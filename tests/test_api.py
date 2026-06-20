@@ -56,3 +56,81 @@ def test_ask_extractive(store):
 def test_ask_bad_mode(store):
     r = _client(store).post("/ask", json={"question": "x", "mode": "nope"})
     assert r.status_code == 400
+
+
+def test_verify_endpoint(store):
+    r = _client(store).post("/verify")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["checked"] == store.count()
+    assert isinstance(body["consistent"], bool)
+    assert "by_check" in body
+
+
+def test_report_endpoint(store):
+    r = _client(store).post("/report", json={"mode": "extractive"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["event_count"] == store.count()
+    assert body["mode"] == "extractive"
+    assert body["markdown"].startswith("# Capital History Report")
+    assert "verification" in body
+    assert isinstance(body["citations"], list)
+
+
+def test_report_rejects_bad_mode(store):
+    r = _client(store).post("/report", json={"mode": "bogus"})
+    assert r.status_code == 400
+
+
+def test_report_custom_title(store):
+    r = _client(store).post("/report", json={"title": "Sample Filing — Brief"})
+    assert r.status_code == 200
+    assert r.json()["title"] == "Sample Filing — Brief"
+
+
+def test_ingest_rejects_non_pdf(store):
+    r = _client(store).post(
+        "/ingest", files={"file": ("notes.txt", b"not a pdf", "text/plain")}
+    )
+    assert r.status_code == 400
+
+
+def test_ingest_status_unknown_job(store):
+    r = _client(store).get("/ingest/status/does-not-exist")
+    assert r.status_code == 404
+
+
+def test_ingest_rejects_oversized_file(store):
+    # over MAX_INGEST_MB (6 MB) -> rejected up front, never reaches extraction
+    big = b"%PDF-1.4\n" + b"0" * (7 * 1000 * 1000)
+    r = _client(store).post("/ingest", files={"file": ("big.pdf", big, "application/pdf")})
+    assert r.status_code == 413
+    assert "MB" in r.json()["detail"]
+
+
+def test_ingest_rejects_too_many_pages(store):
+    import io
+    from pypdf import PdfWriter
+    w = PdfWriter()
+    for _ in range(api.MAX_INGEST_PAGES + 1):
+        w.add_blank_page(width=72, height=72)
+    buf = io.BytesIO(); w.write(buf)
+    r = _client(store).post("/ingest", files={"file": ("many.pdf", buf.getvalue(), "application/pdf")})
+    assert r.status_code == 413
+    assert "pages" in r.json()["detail"]
+
+
+def test_ingest_index_unknown_job(store):
+    r = _client(store).post("/ingest/does-not-exist/index")
+    assert r.status_code == 404
+
+
+def test_ingest_index_unfinished_job(store):
+    c = _client(store)
+    api.JOBS["pending-job"] = {"job_id": "pending-job", "status": "processing"}
+    try:
+        r = c.post("/ingest/pending-job/index")
+        assert r.status_code == 409
+    finally:
+        api.JOBS.pop("pending-job", None)
