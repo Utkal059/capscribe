@@ -69,12 +69,15 @@ state: dict = {"store": None, "agent": None, "source": None}
 # In-memory ingest job registry (no external queue needed for the demo).
 JOBS: dict[str, dict] = {}
 
-# Demo guard rails: a large filing (100+ pages) OOM-crashes a small 512 MB
-# instance mid-extraction. We reject oversized uploads up front (the page count
-# is read cheaply with pypdf, before the heavy extraction) so the user gets a
-# clean message instead of a 502. Raise these via env on a bigger plan.
-MAX_INGEST_PAGES = int(os.getenv("MAX_INGEST_PAGES", "40"))
-MAX_INGEST_MB = float(os.getenv("MAX_INGEST_MB", "6"))
+# Demo guard rails. The hard limit on a free instance is RAM (512 MB), not time:
+# a very large or scanned filing can OOM-crash the whole service mid-extraction.
+# We reject oversized uploads up front (page count is read cheaply with pypdf,
+# before the heavy extraction) so the user gets a clean message instead of a 502.
+# The per-page memory release in ocr.py / table_extractor.py keeps memory flat
+# across pages, so these can be generous. Override via env (e.g. raise further on
+# a Starter/2 GB plan: set MAX_INGEST_MB / MAX_INGEST_PAGES in the dashboard).
+MAX_INGEST_PAGES = int(os.getenv("MAX_INGEST_PAGES", "300"))
+MAX_INGEST_MB = float(os.getenv("MAX_INGEST_MB", "40"))
 
 
 class SearchRequest(BaseModel):

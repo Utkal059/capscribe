@@ -86,27 +86,48 @@ def extract_text_with_ocr_fallback(pdf_path: str | Path) -> list[PageText]:
     results: list[PageText] = []
     with pdfplumber.open(str(pdf_path)) as pdf:
         for i, page in enumerate(pdf.pages, start=1):
-            if is_page_image_dominant(page):
-                if ocr_available():
-                    image = page.to_image(resolution=OCR_RENDER_DPI).original
-                    text, confidence = ocr_page(image)
-                    logger.info("page %d: OCR used (confidence %.2f)", i, confidence)
-                else:
-                    text, confidence = "", 0.0
-                    logger.warning("page %d looks scanned but OCR is unavailable", i)
-                results.append(
-                    PageText(page_number=i, text=text, ocr_used=True, confidence=confidence)
-                )
-            else:
-                results.append(
-                    PageText(
-                        page_number=i,
-                        text=page.extract_text() or "",
-                        ocr_used=False,
-                        confidence=1.0,
+            try:
+                if is_page_image_dominant(page):
+                    if ocr_available():
+                        image = page.to_image(resolution=OCR_RENDER_DPI).original
+                        text, confidence = ocr_page(image)
+                        # A 300-DPI page bitmap is ~25 MB; close it immediately so
+                        # memory stays flat across a long scanned filing.
+                        try:
+                            image.close()
+                        except Exception:
+                            pass
+                        logger.info("page %d: OCR used (confidence %.2f)", i, confidence)
+                    else:
+                        text, confidence = "", 0.0
+                        logger.warning("page %d looks scanned but OCR is unavailable", i)
+                    results.append(
+                        PageText(page_number=i, text=text, ocr_used=True, confidence=confidence)
                     )
-                )
+                else:
+                    results.append(
+                        PageText(
+                            page_number=i,
+                            text=page.extract_text() or "",
+                            ocr_used=False,
+                            confidence=1.0,
+                        )
+                    )
+            finally:
+                # pdfplumber caches per-page objects; flushing keeps a large
+                # filing from accumulating memory page-by-page (OOM guard).
+                _flush_page(page)
     return results
+
+
+def _flush_page(page) -> None:
+    """Release a pdfplumber page's cached objects, if the API is available."""
+    flush = getattr(page, "flush_cache", None)
+    if callable(flush):
+        try:
+            flush()
+        except Exception:
+            pass
 
 
 def process_document(pdf_path: str | Path) -> dict:

@@ -101,9 +101,11 @@ def test_ingest_status_unknown_job(store):
     assert r.status_code == 404
 
 
-def test_ingest_rejects_oversized_file(store):
-    # over MAX_INGEST_MB (6 MB) -> rejected up front, never reaches extraction
-    big = b"%PDF-1.4\n" + b"0" * (7 * 1000 * 1000)
+def test_ingest_rejects_oversized_file(store, monkeypatch):
+    # over MAX_INGEST_MB -> rejected up front, never reaches extraction. Pin a
+    # small limit so the test stays fast and independent of the prod default.
+    monkeypatch.setattr(api, "MAX_INGEST_MB", 1.0)
+    big = b"%PDF-1.4\n" + b"0" * (2 * 1000 * 1000)  # ~2 MB > 1 MB pinned limit
     r = _client(store).post("/ingest", files={"file": ("big.pdf", big, "application/pdf")})
     assert r.status_code == 413
     assert "MB" in r.json()["detail"]

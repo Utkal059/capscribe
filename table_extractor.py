@@ -465,45 +465,56 @@ class TableExtractor:
         chunks: list[TableChunk] = []
         with pdfplumber.open(str(pdf_path)) as pdf:
             for page in pdf.pages:
-                strategy = "lines"
-                tables = page.find_tables(table_settings=self.table_settings)
-                if not tables:
-                    text = (page.extract_text() or "").lower()
-                    if any(sig in text for sig in FALLBACK_SIGNALS):
-                        tables = page.find_tables(table_settings=TEXT_SETTINGS)
-                        strategy = "text-fallback"
-                if not tables:
-                    continue
-                logger.debug("p%d: %d table(s) via %s strategy",
-                             page.page_number, len(tables), strategy)
-                # Only infer section headings on pages that actually have a
-                # table — the char-level scan is wasted on the other ~half.
-                sections = self._infer_sections(page)
-                for tbl in tables:
-                    data = tbl.extract()
-                    if not data or len(data) < 2:
+                try:
+                    strategy = "lines"
+                    tables = page.find_tables(table_settings=self.table_settings)
+                    if not tables:
+                        text = (page.extract_text() or "").lower()
+                        if any(sig in text for sig in FALLBACK_SIGNALS):
+                            tables = page.find_tables(table_settings=TEXT_SETTINGS)
+                            strategy = "text-fallback"
+                    if not tables:
                         continue
-                    # Fold any wrapped/multi-line header rows into one header so
-                    # split column names ("date of" + "allotment") still match.
-                    headers, body = _merge_multiline_header(data)
-                    rows = [
-                        {headers[i]: (cell or "").strip()
-                         for i, cell in enumerate(r) if i < len(headers)}
-                        for r in body
-                    ]
-                    raw_text = "\n".join(
-                        " | ".join((c or "") for c in r) for r in data
-                    )
-                    chunks.append(
-                        TableChunk(
-                            page_num=page.page_number,
-                            bbox=tuple(round(float(b), 2) for b in tbl.bbox),
-                            headers=headers,
-                            rows=rows,
-                            raw_text=raw_text,
-                            source_section=self._section_for(sections, tbl.bbox[1]),
+                    logger.debug("p%d: %d table(s) via %s strategy",
+                                 page.page_number, len(tables), strategy)
+                    # Only infer section headings on pages that actually have a
+                    # table — the char-level scan is wasted on the other ~half.
+                    sections = self._infer_sections(page)
+                    for tbl in tables:
+                        data = tbl.extract()
+                        if not data or len(data) < 2:
+                            continue
+                        # Fold any wrapped/multi-line header rows into one header so
+                        # split column names ("date of" + "allotment") still match.
+                        headers, body = _merge_multiline_header(data)
+                        rows = [
+                            {headers[i]: (cell or "").strip()
+                             for i, cell in enumerate(r) if i < len(headers)}
+                            for r in body
+                        ]
+                        raw_text = "\n".join(
+                            " | ".join((c or "") for c in r) for r in data
                         )
-                    )
+                        chunks.append(
+                            TableChunk(
+                                page_num=page.page_number,
+                                bbox=tuple(round(float(b), 2) for b in tbl.bbox),
+                                headers=headers,
+                                rows=rows,
+                                raw_text=raw_text,
+                                source_section=self._section_for(sections, tbl.bbox[1]),
+                            )
+                        )
+                finally:
+                    # pdfplumber caches per-page layout objects; flushing each
+                    # page keeps a large filing's memory flat (OOM guard on the
+                    # 512 MB free instance).
+                    flush = getattr(page, "flush_cache", None)
+                    if callable(flush):
+                        try:
+                            flush()
+                        except Exception:
+                            pass
         logger.info("extracted %d tables from %s", len(chunks), pdf_path)
         return chunks
 
